@@ -1,0 +1,533 @@
+# SPDX-License-Identifier: Apache-2.0
+# SANKHYA - continuous integration.
+#
+# ubuntu-latest is the authority on -Werror cleanliness and on the sanitizer runs; the
+# Windows build is a developer convenience and is not gated here.
+#
+# The `provenance` job is not decoration. CLAUDE.md commits us to proving that nothing from
+# an optimization solver is linked in, and the cheapest proof is a machine-generated link
+# line plus `ldd` on every pull request, so the claim cannot silently rot.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Release
+            build_type: Release
+            sanitize: OFF
+          - name: Debug+ASan+UBSan
+            build_type: Debug
+            sanitize: ON
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zlib1g-dev
+
+      - name: Report compiler version
+        run: g++ --version
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DSANKHYA_SANITIZE=${{ matrix.sanitize }} \
+            -DSANKHYA_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        env:
+          # halt_on_error keeps a sanitizer report from being buried under later output.
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build --output-on-failure
+
+      # The bindings are pure ctypes over the shared library, so there is no extension to
+      # build and no Python dependency to install - but that also means nothing else in CI
+      # would notice if the C API's symbols stopped being exported, or if a signature
+      # changed underneath them. This step is what makes that a build failure rather than a
+      # discovery made by whoever next imports the package.
+      - name: Python bindings
+        # RELEASE ONLY, and not because the bindings are less important under a sanitizer.
+        # ASan cannot instrument a library that is dlopen'd into an uninstrumented process:
+        # "ASan runtime does not come first in initial library list". Making it work would
+        # mean LD_PRELOADing the runtime into python3, which puts CPython itself under leak
+        # detection and reports its interpreter allocations as failures.
+        #
+        # Nothing is lost. The bindings are pure Python over ctypes - there is no C++ here
+        # for a sanitizer to check - and the C API they call IS covered under ASan, by
+        # tests/unit/test_c_api.cpp in this same job.
+        if: matrix.name == 'Release'
+        run: PYTHONPATH=bindings/python python3 bindings/python/test_bindings.py
+
+      # Every other check in this job is a unit test. Without this step the command line
+      # itself - argument handling, file loading, the writers, the exit codes - is covered
+      # by nothing and could break completely while CI stayed green. This runs the pipeline
+      # the way a judge will: read a file, solve it, write the outputs, and check the number
+      # against a value verified by hand outside the solver.
+      - name: CLI end-to-end smoke test
+        run: |
+          set -euo pipefail
+          ./build/sankhya version
+          ./build/sankhya options
+          ./build/sankhya info demo/crude_blend.mps
+
+          echo '--- solve the MPS form ---'
+          ./build/sankhya solve demo/crude_blend.mps --write-sol blend.sol --stats blend.json
+          test -s blend.sol
+          test -s blend.json
+
+          echo '--- the LP form must give an identical solution ---'
+          ./build/sankhya solve demo/crude_blend.lp --write-sol blend_lp.sol
+          diff <(sed -n '/begin columns/,/end rows/p' blend.sol) \
+               <(sed -n '/begin columns/,/end rows/p' blend_lp.sol)
+
+          echo '--- so must the gzipped MPS ---'
+          gzip -kf demo/crude_blend.mps
+          ./build/sankhya solve demo/crude_blend.mps.gz --write-sol blend_gz.sol
+          diff <(sed -n '/begin columns/,/end rows/p' blend.sol) \
+               <(sed -n '/begin columns/,/end rows/p' blend_gz.sol)
+
+          echo '--- --gpu must be accepted, must warn, and must give the same answer ---'
+          # CLAUDE.md: the CPU build works with zero CUDA installed and --gpu never crashes.
+          # Until the CUDA backend lands this is the whole of the GPU story a judge can
+          # type, so the flag has to parse and the CPU answer has to be the same one.
+          ./build/sankhya solve demo/crude_blend.mps --gpu --write-sol blend_gpu.sol 2>&1 \
+            | tee gpu.log
+          grep -q 'no CUDA backend' gpu.log
+          diff <(sed -n '/begin columns/,/end rows/p' blend.sol) \
+               <(sed -n '/begin columns/,/end rows/p' blend_gpu.sol)
+
+          echo '--- objective must match the hand-verified value ---'
+          python3 tools/check_demo_result.py blend.json
+
+          echo '--- the solution must survive INDEPENDENT verification ---'
+          # verify_solution.py shares no code with the solver: it re-parses the model
+          # with its own MPS reader and re-derives feasibility, the objective and
+          # strong duality. A reader bug shows up here as a disagreement.
+          python3 tools/verify_solution.py demo/crude_blend.mps blend.sol
+
+          echo '--- a MILP must be SOLVED, and never answered with its relaxation ---'
+          # Before Phase 5 this step asserted the MILP was refused. Branch and bound now
+          # solves it, so the assertion moves to what actually matters and always did: the
+          # answer must be INTEGRAL. A fractional point reported as optimal is the failure
+          # this check exists to catch, whichever engine produced it.
+          ./build/sankhya solve demo/blend_milp.mps --write-sol milp.sol --stats milp.json
+          grep -q 'branch-and-bound' milp.json
+          python3 tools/verify_solution.py demo/blend_milp.mps milp.sol
+          echo 'MILP solved and independently verified'
+
+      # The PS26119 case studies. These are the instances the demo is built on, so a
+      # regression in any of them turns the demonstration into a wrong answer delivered
+      # confidently to a judge. Each optimum below was established OUTSIDE the solver:
+      # power_dispatch by exhaustive enumeration, lot_sizing by hand, and supply_chain and
+      # ill_conditioned by the fact that the second is an exact re-scaling of the first.
+      # numpy is OPTIONAL. matrix_stats.py computes rank exactly over the rationals, which
+      # is the load-bearing claim and needs no third party; numpy is used only for the SVD
+      # behind the condition number, and the script says so plainly when it is absent.
+      - name: numpy, for the condition number only
+        run: pip install numpy
+
+      # The synthetic generator (#18). Small on purpose - this is a smoke test that the
+      # generator still produces a solvable instance whose analytic optimum both engines
+      # find, not a scale benchmark. 400x400 solves in under a second on both; the sizes
+      # where the two engines diverge cost a minute of simplex time each and belong in a
+      # benchmark run, not on every pull request.
+      - name: Synthetic large LP generator
+        run: |
+          set -euo pipefail
+          mkdir -p bench/large
+
+          python3 bench/runners/generate_large_lp.py             --rows 400 --cols 400 --nnz-per-col 5 --seed 42 --out bench/large/ci.mps
+
+          # The analytic optimum is read out of the instance's own header, which the
+          # generator writes, rather than hard-coded here where it would rot the moment the
+          # construction changed.
+          expected=$(grep -oE 'analytic optimum = -?[0-9]+' bench/large/ci.mps | grep -oE -- '-?[0-9]+$')
+          echo "analytic optimum from the file header: $expected"
+
+          # Written once rather than heredoc'd inside the loop below: a heredoc in a loop
+          # body is a fragile construct, and the first version of this step silently skipped
+          # its second iteration - the pdhg check never ran and the step still looked like it
+          # had tested both engines.
+          cat > check_analytic.py <<'PYEOF'
+          import json, sys
+          engine, expected = sys.argv[1], float(sys.argv[2])
+          blob = json.load(open(f"ci-{engine}.json"))
+          status = blob["result"]["status"]
+          objective = blob["result"]["objective"]
+          assert status in ("optimal", "feasible"), f"{engine}: status is {status}"
+          rel = abs(objective - expected) / max(1.0, abs(expected))
+          assert rel <= 1e-6, (f"{engine}: objective {objective!r} vs analytic {expected!r}, "
+                               f"relative error {rel:.3e}")
+          print(f"{engine}: {status}, objective {objective!r} matches the analytic optimum")
+          PYEOF
+
+          for engine in simplex pdhg; do
+            echo "--- $engine ---"
+            # `solve` returns 0 ONLY for optimal; a limit or a feasible-but-unproven point is
+            # 1, and 5 is a real error (see apps/sankhya-cli/main.cpp). PDHG legitimately
+            # returns `feasible` here - it meets its relative tolerance but not the absolute
+            # standard this project verifies against - so a bare invocation under `set -e`
+            # aborts the loop. The first version of this step did exactly that: it passed
+            # having silently never checked pdhg at all.
+            code=0
+            ./build/sankhya solve bench/large/ci.mps --time-limit 120               --option algorithm=$engine --option log_to_console=false               --stats "ci-$engine.json" || code=$?
+            if [ "$code" -ge 5 ]; then
+              echo "::error::$engine failed with exit code $code"
+              exit 1
+            fi
+            # The status and the objective are checked properly below; the exit code only
+            # distinguishes "ran" from "errored".
+            python3 check_analytic.py "$engine" "$expected"
+          done
+
+      - name: PS26119 case studies
+        run: |
+          set -euo pipefail
+
+          echo '--- the committed .mps files must still match their generator ---'
+          # If they drift, the algebra documented in the file headers no longer describes
+          # the instance the demo actually solves.
+          python3 data/casestudies/generate.py
+          git diff --exit-code -- data/casestudies/
+
+          for case in power_dispatch supply_chain ill_conditioned lot_sizing; do
+            echo "--- $case ---"
+            ./build/sankhya solve "data/casestudies/$case.mps"               --write-sol "$case.sol" --stats "$case.json"
+            python3 tools/verify_solution.py "data/casestudies/$case.mps" "$case.sol" --quiet
+          done
+
+          echo '--- the MILP answer must agree with exhaustive enumeration ---'
+          # verify_solution.py cannot prove a MILP optimum is unbeatable; only a second,
+          # independent search can. Four units means sixteen commitment patterns.
+          python3 data/casestudies/dispatch_oracle.py
+          python3 - <<'PYEOF'
+          import json
+          got = json.load(open("power_dispatch.json"))["result"]["objective"]
+          assert abs(got - 3270.0) <= 1e-9, f"dispatch optimum moved to {got!r}, oracle says 3270"
+          print("dispatch agrees with the oracle")
+          PYEOF
+
+          echo '--- scaling must not move the answer ---'
+          # ill_conditioned.mps is supply_chain.mps under a diagonal change of variable
+          # spanning 22 orders of magnitude. The objective is invariant under that by
+          # construction, so any disagreement is a numerical bug in our solver.
+          python3 - <<'PYEOF'
+          import json
+          a = json.load(open("supply_chain.json"))["result"]["objective"]
+          b = json.load(open("ill_conditioned.json"))["result"]["objective"]
+          assert abs(a - b) <= 1e-9 * max(1.0, abs(a)), f"scaling moved the answer: {a!r} vs {b!r}"
+          print(f"both re-scalings agree on {a!r}")
+          PYEOF
+
+          echo '--- the robustness sweep, reduced (#71) ---'
+          # One instance per point, shorter sweeps. The CSV goes outside bench/results/ so
+          # a reduced run can never be mistaken for the evidence docs/BENCHMARKS.md reports.
+          python3 bench/runners/robustness.py --quick --binary ./build/sankhya               --out "$RUNNER_TEMP/robustness-quick.csv"
+
+          echo '--- every tracked shell script must be executable ---'
+          # README says `scripts/reproduce.sh`, not `bash scripts/reproduce.sh`. All six
+          # scripts were committed as 100644 from Windows, where git cannot see the bit,
+          # and this step ran the demo through `bash`, so a Linux clone failed on the first
+          # command a judge types (Permission denied, exit 126) while CI stayed green.
+          git ls-files -s -- '*.sh' \
+            | awk '$1 != "100755" { print "not executable: " $4; bad = 1 } END { exit bad }'
+          echo 'all tracked shell scripts are executable'
+
+          echo '--- the demo itself must run start to finish ---'
+          # --quick skips the HiGHS comparison, which needs highspy. Run through the shebang,
+          # not through `bash`, so the executable bit is exercised here too.
+          demo/run_sih_demo.sh --quick > /dev/null
+          echo 'PS26119 demo ran clean'
+
+  benchmarks:
+    name: netlib benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zlib1g-dev
+
+      - name: Build
+        run: |
+          cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release -DSANKHYA_BUILD_TESTS=OFF
+          cmake --build build -j
+
+      # data/netlib/ is gitignored, so without a cache this job downloads the whole set
+      # from netlib.org on every run. A netlib.org outage then turns the benchmark red for
+      # a reason unrelated to the change under review - and over a sprint that trains
+      # everyone to ignore a red benchmark job, which is the one job whose failure matters
+      # most.
+      #
+      # Keyed on fetch_data.py itself, because that file decides both WHICH instances are
+      # fetched (the --set tiers) and HOW the published optima are parsed out of the
+      # readme. Any change to either has to re-fetch; nothing else needs to.
+      - name: Cache the fetched Netlib instances
+        id: netlib-cache
+        uses: actions/cache@v4
+        with:
+          path: data/netlib
+          key: netlib-v1-${{ hashFiles('bench/runners/fetch_data.py') }}
+
+      # Downloads the instances and PARSES the reference optima out of Netlib's own
+      # readme. No expected value is stored in this repository, so the benchmark cannot
+      # be made to pass by editing a constant.
+      #
+      # Still runs on a cache hit. It is cheap when the files are already present, it
+      # re-verifies every sha256 in reference.json, and it keeps the fetch path on the
+      # tested route rather than letting it rot behind a cache that always hits.
+      - name: Fetch the Netlib set and its published optima
+        run: python3 bench/runners/fetch_data.py
+
+      # Gates on BOTH the published optimum and independent verification of every
+      # solution. Exits non-zero if any instance fails either one.
+      - name: Solve and verify
+        run: python3 bench/runners/netlib.py --binary build/sankhya --time-limit 120
+
+      - name: Upload the evidence CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlib-results
+          path: bench/results/*.csv
+          if-no-files-found: warn
+
+  netlib-medium:
+    # THE GATE THAT #149 NEEDED AND DID NOT HAVE.
+    #
+    # The job above runs the nine committed instances and requires all nine to match their
+    # published optimum. That is a strict gate on a small, easy set, and it is worth keeping
+    # exactly as it is. What it cannot do is see a bug that only larger models expose.
+    #
+    # #149 (presolve free-column-singleton and doubleton-equation) passed all five checks and
+    # regressed the DUAL on seven of the first thirty Netlib instances - objective matching
+    # the published value to ten significant figures while the reduced costs were out by
+    # 6.9e-01. Presolve is on by default for every model, so the blast radius was everything;
+    # the job that would have caught it was pointed at nine instances that do not trigger
+    # those reductions.
+    #
+    # This job runs the 50-instance medium tier and gates on a DIFFERENT property:
+    # --require-verified fails only when the independent verifier rejects a solution, not
+    # when an instance misses the published optimum. Missing an optimum can be a known
+    # limitation - the tier is 43/50 and the shortfall is named in docs/BENCHMARKS.md and
+    # tracked in #34 - and gating on it would paint this job permanently red, which trains
+    # everyone to ignore it. A verifier rejection is never a known limitation: the verifier
+    # shares no code with the solver and re-derives the answer from the original file, so its
+    # rejection means the solution does not hold together on its own terms.
+    name: netlib medium (verifier gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zlib1g-dev
+
+      - name: Build
+        run: |
+          cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release -DSANKHYA_BUILD_TESTS=OFF
+          cmake --build build -j
+
+      # Keyed on the tier as well as on fetch_data.py, so this cache and the small set's
+      # cannot overwrite each other with a different set of files under the same key.
+      - name: Cache the fetched Netlib instances
+        uses: actions/cache@v4
+        with:
+          path: data/netlib
+          key: netlib-medium-v1-${{ hashFiles('bench/runners/fetch_data.py') }}
+
+      - name: Fetch the medium tier and its published optima
+        run: python3 bench/runners/fetch_data.py --set medium
+
+      - name: Solve and verify every answer
+        run: |
+          python3 bench/runners/netlib.py --binary build/sankhya             --time-limit 120 --require-verified
+
+      - name: Upload the evidence CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlib-medium-results
+          path: bench/results/*.csv
+          if-no-files-found: warn
+
+  provenance:
+    name: provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build zlib1g-dev
+
+      - name: Configure and build
+        run: |
+          cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release -DSANKHYA_BUILD_TESTS=OFF
+          cmake --build build -j
+
+      - name: Record the link line and shared library dependencies
+        run: |
+          echo "=== full link line ==="
+          # The link command the build system actually ran. Asked of Ninja directly rather
+          # than read out of a file, so it cannot drift from what was really executed.
+          ninja -C build -t commands sankhya | tail -1
+          echo
+          echo "=== ldd build/sankhya ==="
+          ldd build/sankhya
+          echo
+          echo "=== nothing below may name a solver ==="
+          if ldd build/sankhya | grep -Ei 'cbc|clp|highs|scip|soplex|glpk|lpsolve|osqp|ortools|gurobi|cplex|xpress'; then
+            echo "FAIL: a solver library is linked into the binary"
+            exit 1
+          fi
+          echo "OK: no solver library is linked"
+
+      # The SBOM is COMMITTED, not only produced here. A bill of materials that exists solely
+      # as a workflow artifact answers "what was in that CI run", which is not the question a
+      # judge with a clone in front of them is asking. tools/make_sbom.py reads the pinned
+      # FetchContent tags out of CMakeLists.txt and the licences out of the dependency table
+      # in docs/PROVENANCE.md, so a dependency added to the build without being documented
+      # fails here rather than passing silently.
+      - name: SBOM is up to date with the build file
+        run: python3 tools/make_sbom.py --check
+
+      # Section 3 of PROVENANCE.md tells a judge where each algorithm lives. A row that
+      # points at a file that has moved reads as a citation nobody checked; two did, for a
+      # week, after scaling.cpp moved from src/pdhg/ to src/la/.
+      - name: Every path PROVENANCE.md names exists
+        run: python3 tools/check_provenance_paths.py
+
+      - name: Generate SPDX SBOM from a scan, as a cross-check
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: sankhya-sbom.spdx.json
+
+  reproduce:
+    name: fresh-machine reproduction
+    runs-on: ubuntu-latest
+    steps:
+      # THE POINT OF THIS JOB (#73). The acceptance list asks for the evidence chain to be
+      # verified "on a machine that has never built this project". A hosted runner is exactly
+      # that, provisioned from an image every time, and unlike a one-off check on a borrowed
+      # laptop it re-verifies on every push. What it catches is the class of bug that is
+      # invisible on a developer box: a path that only exists locally, a tool assumed to be
+      # installed, a file committed without its executable bit (which is what happened - all
+      # six scripts were mode 100644, so `scripts/reproduce.sh` died with Permission denied
+      # on any clone that was not Windows).
+      #
+      # fetch-depth: 0 is load-bearing. bench/runners/latest_result.py orders results CSVs by
+      # git history, and a depth-1 checkout has no history to order them by.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install what a judge would install
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          # numpy and highspy are what separate a complete run from a DEGRADED one: without
+          # them reproduce.sh skips the conditioning sweep's SVD and the HiGHS comparison,
+          # and this job asserts below that nothing was skipped.
+          pip install numpy highspy
+
+      # No arguments: the offline path, the one a judge on conference wifi gets. The nine
+      # committed Netlib instances make that possible, and --fetch-medium is deliberately not
+      # passed so this job does not depend on netlib.org being up.
+      - name: scripts/reproduce.sh, from a clone that has never been built
+        run: |
+          set -o pipefail
+          scripts/reproduce.sh 2>&1 | tee "$RUNNER_TEMP/reproduce.log"
+
+      # The script prints what it could not run rather than failing, because a reader is
+      # better served by partial evidence than by a stack trace. That makes its exit code the
+      # wrong thing to gate on: the assertion that matters is that the list of skips is empty.
+      - name: Nothing may have been skipped
+        run: |
+          if grep -q 'Nothing was skipped' "$RUNNER_TEMP/reproduce.log"; then
+            echo "the whole evidence chain ran on a machine that had never built it"
+          else
+            echo "FAIL: reproduce.sh skipped at least one step on a fresh machine:"
+            sed -n '/step(s) skipped/,$p' "$RUNNER_TEMP/reproduce.log"
+            exit 1
+          fi
+
+      # docs/BENCHMARKS.md is regenerated by the run above and WILL differ, because the
+      # timings are this runner's. The COUNTS must not: every "**N of M**" in the document is
+      # a pass rate or a proof rate, and one of those moving means the committed document
+      # claims something this machine did not measure. Comparing the counts rather than
+      # filtering the diff keeps this from failing on an unrelated wording change.
+      - name: The regenerated document may differ only in timings
+        run: |
+          # Scratch files go to RUNNER_TEMP, never the workspace: a later step diffs the
+          # tree, and a stray file there is noise at best and a false signal at worst.
+          git diff -- docs/BENCHMARKS.md > "$RUNNER_TEMP/benchmarks.diff" || true
+          git show HEAD:docs/BENCHMARKS.md > "$RUNNER_TEMP/committed.md"
+          python3 - <<'PY'
+          import re, sys
+          import os
+          counts = lambda p: re.findall(r"\*\*(\d+) of (\d+)\*\*", open(p, encoding="utf-8").read())
+          tmp = os.environ["RUNNER_TEMP"]
+          before, after = counts(f"{tmp}/committed.md"), counts("docs/BENCHMARKS.md")
+          if before == after:
+              print(f"{len(after)} counts unchanged; only timings moved")
+              sys.exit(0)
+          print("FAIL: a pass or proof rate moved on this machine")
+          print(f"  committed:   {before}")
+          print(f"  regenerated: {after}")
+          sys.exit(1)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fresh-machine-reproduction
+          path: |
+            ${{ runner.temp }}/reproduce.log
+            ${{ runner.temp }}/benchmarks.diff
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned via pip rather than apt: clang-format's output changes between major versions,
+      # so an unpinned formatter turns a green tree red on an unrelated runner image bump.
+      # This is the exact version the tree was normalised with.
+      - name: Check formatting
+        run: |
+          pip install clang-format==22.1.8
+          clang-format --version
+          find include src apps tests -type f \( -name '*.hpp' -o -name '*.cpp' -o -name '*.h' \) \
+            -print0 | xargs -0 clang-format --dry-run --Werror

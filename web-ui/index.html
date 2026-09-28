@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SANKHYA (संख्या) — Indigenous GPU-Accelerated Optimization Solver | SIH26119 MRPL</title>
+  <meta name="description" content="Indigenous GPU-accelerated optimization solver for LP, MILP, and Convex QP, built from mathematical foundations for Smart India Hackathon 2026 MRPL.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo-container">
+        <div class="brand-glyph">∑</div>
+        <div class="brand-text">
+          <div class="brand-title">SANKHYA <span class="hindi-title">(संख्या)</span></div>
+          <div class="brand-subtitle">SIH 2026 · PS26119 · Mangalore Refinery and Petrochemicals Ltd</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Status Indicators -->
+    <div class="header-center">
+      <div class="status-pill status-sovereign" title="Zero third-party solver dependencies in binary">
+        <span class="pulse-dot green"></span>
+        <span>Sovereign C++20 Core</span>
+      </div>
+      <div class="status-pill status-engine" title="Active continuous solver engine">
+        <span class="engine-badge">Dual Simplex</span>
+      </div>
+      <div class="status-pill status-kkt" title="Independent KKT & Farkas verification pass">
+        <span class="check-icon">✓</span>
+        <span>78/89 Netlib Verified</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="run-demo-header-btn" class="btn btn-primary glow-button">
+        <span class="btn-icon">▶</span>
+        <span>Run MRPL Blend Demo</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="app-nav">
+    <div class="nav-tabs-wrapper">
+      <button class="nav-tab active" data-tab="tab-refinery" id="nav-tab-refinery">
+        <span class="tab-icon">🛢️</span>
+        <span class="tab-text">MRPL Refinery Twin</span>
+        <span class="tab-badge">Interactive</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-solver" id="nav-tab-solver">
+        <span class="tab-icon">⚡</span>
+        <span class="tab-text">Solver Studio</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-telemetry" id="nav-tab-telemetry">
+        <span class="tab-icon">📈</span>
+        <span class="tab-text">Convergence Telemetry</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-benchmarks" id="nav-tab-benchmarks">
+        <span class="tab-icon">📊</span>
+        <span class="tab-text">Benchmark Observatory</span>
+        <span class="tab-badge blue">HiGHS Tested</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-verifier" id="nav-tab-verifier">
+        <span class="tab-icon">🔬</span>
+        <span class="tab-text">KKT Verifier</span>
+      </button>
+      <button class="nav-tab" data-tab="tab-architecture" id="nav-tab-architecture">
+        <span class="tab-icon">🏛️</span>
+        <span class="tab-text">Architecture & Math</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Viewport -->
+  <main class="app-main">
+    
+    <!-- ================= TAB 1: MRPL REFINERY TWIN ================= -->
+    <section id="tab-refinery" class="tab-content active">
+      <div class="hero-strip">
+        <div class="hero-content">
+          <h2>Mangalore Refinery Crude Blending Optimizer</h2>
+          <p>Real-time linear & quadratic optimization of crude distillation feedstocks to maximize refinery margin while meeting strict BS-VI sulphur caps and diesel commitments.</p>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat-card">
+            <span class="stat-label">Optimal Margin</span>
+            <span class="stat-value" id="refinery-optimal-margin">$214,146 /day</span>
+            <span class="stat-trend positive">↑ Exact Analytic KKT Match</span>
+          </div>
+          <div class="hero-stat-card">
+            <span class="stat-label">CDU Utilization</span>
+            <span class="stat-value" id="refinery-cdu-util">110.26 kbbl/d</span>
+            <span class="stat-trend neutral">91.9% of 120 kbbl/d cap</span>
+          </div>
+          <div class="hero-stat-card">
+            <span class="stat-label">Sulphur Margin</span>
+            <span class="stat-value" id="refinery-sulphur-val">0.96 %wt</span>
+            <span class="stat-trend positive">✓ Clean (< 1.00 %wt)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="refinery-grid">
+        <!-- Left: Crude Controls & Feedstocks -->
+        <div class="glass-card refinery-controls-card">
+          <div class="card-header">
+            <h3>Crude Feedstock Allocations</h3>
+            <span class="badge">CDU Decision Variables</span>
+          </div>
+
+          <div class="crude-feed-list">
+            <!-- Crude 1: Arab Light -->
+            <div class="crude-card" id="crude-card-al">
+              <div class="crude-header">
+                <div class="crude-tag tag-sweet">Arab Light (AL)</div>
+                <div class="crude-cost">$74.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">Diesel Yield: <strong>30%</strong></span>
+                <span class="prop">Sulphur: <strong>1.80%</strong></span>
+                <span class="prop margin-prop">Margin: <strong>+$2.40/bbl</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-al">10.00 kbbl/d</span>
+                </div>
+                <input type="range" id="slider-al" min="0" max="60" step="0.5" value="10.0" class="styled-range">
+                <div class="slider-limits">
+                  <span>Min: 10.0 kbbl/d (LO)</span>
+                  <span>Uncapped (UP)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Crude 2: Bonny Light -->
+            <div class="crude-card" id="crude-card-bn">
+              <div class="crude-header">
+                <div class="crude-tag tag-sweet">Bonny Light (BN)</div>
+                <div class="crude-cost">$79.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">Diesel Yield: <strong>45%</strong></span>
+                <span class="prop">Sulphur: <strong>0.14%</strong></span>
+                <span class="prop margin-prop">Margin: <strong>+$1.60/bbl</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-bn">45.00 kbbl/d</span>
+                </div>
+                <input type="range" id="slider-bn" min="0" max="60" step="0.5" value="45.0" class="styled-range">
+                <div class="slider-limits">
+                  <span>Min: 0.0 kbbl/d</span>
+                  <span>Max: 45.0 kbbl/d (UP)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Crude 3: Murban -->
+            <div class="crude-card" id="crude-card-mu">
+              <div class="crude-header">
+                <div class="crude-tag tag-medium">Murban (MU)</div>
+                <div class="crude-cost">$77.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">Diesel Yield: <strong>38%</strong></span>
+                <span class="prop">Sulphur: <strong>0.78%</strong></span>
+                <span class="prop margin-prop">Margin: <strong>+$1.64/bbl</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-mu">55.26 kbbl/d</span>
+                </div>
+                <input type="range" id="slider-mu" min="0" max="70" step="0.5" value="55.26" class="styled-range">
+                <div class="slider-limits">
+                  <span>Min: 0.0 kbbl/d</span>
+                  <span>Max: 60.0 kbbl/d (UP)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Refinery Constraint Targets -->
+          <div class="constraints-section">
+            <h4>Refinery Operational Targets & Market Demands</h4>
+            <div class="target-controls">
+              <div class="target-item">
+                <label for="target-diesel">Diesel Pool Commitment (kbbl/d):</label>
+                <div class="target-input-row">
+                  <input type="number" id="target-diesel" value="40" min="20" max="60" step="1">
+                  <span class="unit">kbbl/d</span>
+                </div>
+              </div>
+              <div class="target-item">
+                <label for="target-cdu-max">CDU Max Capacity (kbbl/d):</label>
+                <div class="target-input-row">
+                  <input type="number" id="target-cdu-max" value="120" min="90" max="150" step="5">
+                  <span class="unit">kbbl/d</span>
+                </div>
+              </div>
+              <div class="target-item">
+                <label for="target-sulphur">Max Sulphur (%wt limit):</label>
+                <div class="target-input-row">
+                  <input type="number" id="target-sulphur" value="1.00" min="0.5" max="2.0" step="0.05">
+                  <span class="unit">%wt</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-buttons-row">
+              <button id="refinery-solve-btn" class="btn btn-primary full-width">
+                <span>⚡ Re-Optimize with SANKHYA Dual Simplex</span>
+              </button>
+              <button id="refinery-reset-btn" class="btn btn-secondary">
+                <span>Reset to MRPL Demo Baseline</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center/Right: Schematic Visualizer & Economics -->
+        <div class="refinery-viz-col">
+          <!-- Animated Refinery Flowchart -->
+          <div class="glass-card schematic-card">
+            <div class="card-header">
+              <h3>MRPL Mangalore Process Flow Digital Twin</h3>
+              <span class="badge blue">Live Balance</span>
+            </div>
+            <div class="schematic-canvas-container">
+              <canvas id="refinery-canvas" width="680" height="340"></canvas>
+            </div>
+          </div>
+
+          <!-- Shadow Prices / Economic Sensitivities -->
+          <div class="glass-card shadow-prices-card">
+            <div class="card-header">
+              <h3>Refinery Shadow Prices (Dual Simplex $\pi$)</h3>
+              <span class="badge purple">Industrial Dual Multipliers</span>
+            </div>
+            <div class="shadow-prices-table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Constraint Row</th>
+                    <th>Nominal Limit</th>
+                    <th>Current Value</th>
+                    <th>Slack / Margin</th>
+                    <th>Shadow Price (Dual $\pi$)</th>
+                    <th>Economic Meaning for MRPL</th>
+                  </tr>
+                </thead>
+                <tbody id="shadow-prices-body">
+                  <tr>
+                    <td><strong>DIESEL</strong> (Equality)</td>
+                    <td>40.00 kbbl/d</td>
+                    <td id="sp-diesel-cur">40.00</td>
+                    <td><span class="pill-active">Binding (0 slack)</span></td>
+                    <td class="text-mono highlight-gold" id="sp-diesel-val">+$4.316 /bbl</td>
+                    <td>Value to MRPL of expanding diesel delivery commitment by 1 bbl</td>
+                  </tr>
+                  <tr>
+                    <td><strong>SULPHUR</strong> (Upper Bound)</td>
+                    <td>≤ 1.00 %wt</td>
+                    <td id="sp-sulphur-cur">0.96 %wt</td>
+                    <td><span class="pill-slack">+0.04 %wt Slack</span></td>
+                    <td class="text-mono highlight-cyan" id="sp-sulphur-val">$0.00 /%wt</td>
+                    <td>Slack constraint; relaxing limit yields $0 marginal gain</td>
+                  </tr>
+                  <tr>
+                    <td><strong>THRUPUT</strong> (CDU Range)</td>
+                    <td>90 - 120 kbbl/d</td>
+                    <td id="sp-thru-cur">110.26 kbbl/d</td>
+                    <td><span class="pill-slack">9.74 kbbl/d Headroom</span></td>
+                    <td class="text-mono highlight-cyan" id="sp-thru-val">$0.00 /bbl</td>
+                    <td>CDU throughput has surplus capacity; not bottlenecked</td>
+                  </tr>
+                  <tr>
+                    <td><strong>AL_LO_BOUND</strong> (Crude A Min)</td>
+                    <td>≥ 10.00 kbbl/d</td>
+                    <td id="sp-al-cur">10.00 kbbl/d</td>
+                    <td><span class="pill-active">At Floor Bound</span></td>
+                    <td class="text-mono highlight-purple" id="sp-al-val">-$1.105 /bbl</td>
+                    <td>Opportunity cost of mandatory minimum Arab Light intake</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: SOLVER STUDIO ================= -->
+    <section id="tab-solver" class="tab-content">
+      <div class="studio-layout">
+        <!-- Left: Model Selector & Code Editor -->
+        <div class="glass-card studio-input-panel">
+          <div class="card-header">
+            <h3>Model Formulation</h3>
+            <div class="model-quick-select">
+              <label for="model-preset-select">Preset:</label>
+              <select id="model-preset-select" class="styled-select">
+                <option value="crude_blend">demo/crude_blend.mps (MRPL Linear Blending)</option>
+                <option value="crude_blend_qp">demo/crude_blend_qp.mps (Convex QP Price Elasticity)</option>
+                <option value="blend_milp">demo/blend_milp.mps (Refinery Discrete Scheduling)</option>
+                <option value="qp_blend">demo/qp_blend.mps (Strictly Convex 2-stream QP)</option>
+                <option value="miqp_blend">demo/miqp_blend.mps (Convex MIQP with Binaries)</option>
+                <option value="share2b">data/netlib/share2b.mps (Netlib Standard)</option>
+                <option value="afiro">data/netlib/afiro.mps (Netlib Feasible Small)</option>
+                <option value="custom">Custom MPS / LP Editor</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="editor-meta-strip">
+            <span id="model-class-badge" class="badge">LP (Linear)</span>
+            <span id="model-stats-text" class="meta-item">Rows: 4 · Cols: 3 · Non-zeros: 12</span>
+            <span id="model-sense-text" class="meta-item">Sense: MAXIMIZE</span>
+          </div>
+
+          <div class="code-editor-container">
+            <textarea id="model-editor" spellcheck="false"></textarea>
+          </div>
+
+          <!-- Configuration Accordion -->
+          <div class="solver-options-grid">
+            <div class="option-field">
+              <label for="opt-algorithm">Algorithm Engine:</label>
+              <select id="opt-algorithm" class="styled-select">
+                <option value="auto">Auto (Dual Simplex / B&B / QP)</option>
+                <option value="dual-simplex">Dual Simplex (Bounded, Devex)</option>
+                <option value="primal-simplex">Revised Primal Simplex</option>
+                <option value="pdhg">Restarted PDHG (First-Order GPU style)</option>
+                <option value="ipm">Interior Point Method (Mehrotra LDLᵀ)</option>
+              </select>
+            </div>
+
+            <div class="option-field">
+              <label for="opt-pricing">Pricing Strategy:</label>
+              <select id="opt-pricing" class="styled-select">
+                <option value="devex">Devex (Default, -33% iterations)</option>
+                <option value="dantzig">Dantzig (Steepest edge)</option>
+              </select>
+            </div>
+
+            <div class="option-field">
+              <label for="opt-presolve">Presolve Reductions:</label>
+              <select id="opt-presolve" class="styled-select">
+                <option value="true">Enabled (8 Structural Reductions)</option>
+                <option value="false">Disabled (Raw Matrix)</option>
+              </select>
+            </div>
+
+            <div class="option-field">
+              <label for="opt-tolerance">Feasibility Tolerance:</label>
+              <select id="opt-tolerance" class="styled-select">
+                <option value="1e-7">1e-7 (SANKHYA Standard)</option>
+                <option value="1e-9">1e-9 (Strict Duality)</option>
+                <option value="1e-4">1e-4 (Fast PDHG)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="studio-actions">
+            <button id="studio-solve-btn" class="btn btn-primary glow-button full-width">
+              <span class="btn-icon">⚡</span>
+              <span>Execute SANKHYA Solver</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Execution Log & Output Inspector -->
+        <div class="studio-output-panel">
+          <!-- Solver Result Summary Card -->
+          <div class="glass-card result-summary-card">
+            <div class="card-header">
+              <h3>Solution Status & Certified Objective</h3>
+              <div id="solution-status-pill" class="status-pill status-optimal">
+                <span class="status-dot"></span>
+                <span id="solution-status-text">OPTIMAL</span>
+              </div>
+            </div>
+
+            <div class="result-metrics-grid">
+              <div class="result-metric">
+                <span class="metric-title">Primal Objective</span>
+                <span class="metric-num highlight-cyan" id="metric-primal-obj">214.145946</span>
+              </div>
+              <div class="result-metric">
+                <span class="metric-title">Dual Bound</span>
+                <span class="metric-num highlight-gold" id="metric-dual-bound">214.145946</span>
+              </div>
+              <div class="result-metric">
+                <span class="metric-title">Duality Gap</span>
+                <span class="metric-num highlight-green" id="metric-duality-gap">0.000e+00</span>
+              </div>
+              <div class="result-metric">
+                <span class="metric-title">Solve Time</span>
+                <span class="metric-num" id="metric-solve-time">1.24 ms</span>
+              </div>
+              <div class="result-metric">
+                <span class="metric-title">Simplex Iterations</span>
+                <span class="metric-num" id="metric-iterations">4</span>
+              </div>
+              <div class="result-metric">
+                <span class="metric-title">KKT Max Infeasibility</span>
+                <span class="metric-num highlight-green" id="metric-kkt-res">4.21e-16</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Console & Logs -->
+          <div class="glass-card console-card">
+            <div class="card-header">
+              <h3>SANKHYA Core Execution Trace</h3>
+              <div class="console-tools">
+                <span class="tag-console">--progress-out jsonl</span>
+                <button id="copy-log-btn" class="btn btn-small">Copy Log</button>
+              </div>
+            </div>
+            <div class="console-body" id="studio-console-log">
+              <!-- Animated terminal log output injected here -->
+            </div>
+          </div>
+
+          <!-- Detailed Variables & Shadow Prices Table Tabs -->
+          <div class="glass-card tables-card">
+            <div class="table-tabs">
+              <button class="sub-tab active" data-subtab="subtab-primal" id="subtab-btn-primal">Primal Variables (x)</button>
+              <button class="sub-tab" data-subtab="subtab-dual" id="subtab-btn-dual">Dual Rows & Slack (y, s)</button>
+              <button class="sub-tab" data-subtab="subtab-cert" id="subtab-btn-cert">Farkas Certificate</button>
+            </div>
+
+            <div id="subtab-primal" class="subtab-content active">
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Variable</th>
+                      <th>Optimal Value</th>
+                      <th>Lower Bound</th>
+                      <th>Upper Bound</th>
+                      <th>Basis Status</th>
+                      <th>Reduced Cost ($c_j - A_j^T y$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="primal-vars-tbody">
+                    <!-- Dynamic Rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="subtab-dual" class="subtab-content">
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Constraint Row</th>
+                      <th>Row Activity</th>
+                      <th>RHS Lower</th>
+                      <th>RHS Upper</th>
+                      <th>Shadow Price ($\pi$)</th>
+                      <th>Slack Condition</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dual-rows-tbody">
+                    <!-- Dynamic Rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="subtab-cert" class="subtab-content">
+              <div class="certificate-view">
+                <div class="cert-status-banner">
+                  <span class="cert-icon">📜</span>
+                  <div>
+                    <h4 id="cert-title">Certifying Basis Matrix B</h4>
+                    <p id="cert-desc">Primal and Dual feasibility certified via threshold-pivoted Markowitz LU factorization.</p>
+                  </div>
+                </div>
+                <pre class="cert-pre" id="cert-details-pre">
+Farkas Ray / Dual Feasibility Certificate:
+Condition number estimation: κ(B) ≈ 4.12e+02
+Compensated residual ||Ax - b||_∞ = 2.78e-16
+Dual slack complementarity: xᵀ s = 0.000e+00
+Markowitz stability ratio: 0.010 (pivot floor: 1e-11)
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: CONVERGENCE TELEMETRY ================= -->
+    <section id="tab-telemetry" class="tab-content">
+      <div class="telemetry-grid">
+        <div class="glass-card telemetry-chart-card">
+          <div class="card-header">
+            <h3>Iteration Convergence Trajectory</h3>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot cyan"></span> Primal Objective</span>
+              <span class="legend-item"><span class="legend-dot gold"></span> Dual Bound</span>
+              <span class="legend-item"><span class="legend-dot purple"></span> Residual Error</span>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="convergence-canvas" width="800" height="380"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card telemetry-side-card">
+          <div class="card-header">
+            <h3>Engine Dynamics & Complexity</h3>
+            <span class="badge blue">Live Profiler</span>
+          </div>
+
+          <div class="engine-stats-list">
+            <div class="engine-stat-row">
+              <span class="engine-stat-title">FTRAN Hyper-sparse Backsolve:</span>
+              <span class="engine-stat-val text-mono highlight-cyan">0.08 μs /col</span>
+            </div>
+            <div class="engine-stat-row">
+              <span class="engine-stat-title">Devex Pricing Weights Update:</span>
+              <span class="engine-stat-val text-mono highlight-gold">Exact Recursive</span>
+            </div>
+            <div class="engine-stat-row">
+              <span class="engine-stat-title">Basis Inversions / Refactorizations:</span>
+              <span class="engine-stat-val text-mono">1 (Fresh Markowitz LU)</span>
+            </div>
+            <div class="engine-stat-row">
+              <span class="engine-stat-title">Branch-and-Bound Nodes:</span>
+              <span class="engine-stat-val text-mono">Root LP (Closed at Node 0)</span>
+            </div>
+            <div class="engine-stat-row">
+              <span class="engine-stat-title">Iterative Refinement Passes:</span>
+              <span class="engine-stat-val text-mono highlight-green">2 Compensated Steps</span>
+            </div>
+          </div>
+
+          <div class="telemetry-controls">
+            <h4>Simulate Convergence Rate</h4>
+            <div class="telemetry-button-group">
+              <button class="btn btn-secondary active" data-preset="simplex">Dual Simplex (Devex)</button>
+              <button class="btn btn-secondary" data-preset="pdhg">PDHG First-Order</button>
+              <button class="btn btn-secondary" data-preset="ipm">Interior Point (Mehrotra)</button>
+              <button class="btn btn-secondary" data-preset="mip">MIP Branch & Bound</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: BENCHMARK OBSERVATORY ================= -->
+    <section id="tab-benchmarks" class="tab-content">
+      <div class="bench-hero">
+        <div class="bench-hero-left">
+          <h2>Netlib LP & HiGHS Cross-Validation Observatory</h2>
+          <p>Every benchmark cited below was measured directly from reproducible CSV logs in <code>bench/results/</code>. On every instance where SANKHYA generates an answer, it agrees with third-party solver <strong>HiGHS</strong> to within 3.0e-07.</p>
+        </div>
+        <div class="bench-summary-badges">
+          <div class="bench-score-card">
+            <span class="score-num">78 / 89</span>
+            <span class="score-label">Full Netlib Pass Rate</span>
+          </div>
+          <div class="bench-score-card">
+            <span class="score-num">48 / 50</span>
+            <span class="score-label">Medium Tier Passes</span>
+          </div>
+          <div class="bench-score-card">
+            <span class="score-num">100%</span>
+            <span class="score-label">HiGHS Agreement Rate</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bench-grid">
+        <!-- Interactive Benchmark Table -->
+        <div class="glass-card bench-table-card">
+          <div class="card-header">
+            <h3>Cross-Check Table: SANKHYA vs. HiGHS vs. Published Optimum</h3>
+            <div class="table-filter-group">
+              <input type="text" id="bench-filter-input" placeholder="Search instance (e.g. pilot, e226)..." class="styled-input">
+            </div>
+          </div>
+          <div class="table-scroll max-height-table">
+            <table class="data-table" id="bench-data-table">
+              <thead>
+                <tr>
+                  <th>Instance</th>
+                  <th>SANKHYA Objective</th>
+                  <th>HiGHS Objective</th>
+                  <th>Published Netlib</th>
+                  <th>Rel Error vs HiGHS</th>
+                  <th>Verdict / Finding</th>
+                </tr>
+              </thead>
+              <tbody id="bench-table-body">
+                <!-- Injected from data.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Scale Refinery Benchmarks -->
+        <div class="glass-card bench-scale-card">
+          <div class="card-header">
+            <h3>MRPL Refinery Industrial Scale Benchmark</h3>
+            <span class="badge purple">Up to 779,640 Variables</span>
+          </div>
+          <div class="scale-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Model Period</th>
+                  <th>Rows</th>
+                  <th>Columns</th>
+                  <th>Nonzeros</th>
+                  <th>SANKHYA Engine</th>
+                  <th>Solve Time</th>
+                  <th>Optimum</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Monthly Year</strong></td>
+                  <td>1,068</td>
+                  <td>1,656</td>
+                  <td>13,610</td>
+                  <td><span class="engine-tag">Dual Simplex</span></td>
+                  <td>1.30 s</td>
+                  <td><span class="pill-active">✓ Exact (-61,203.88)</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Daily Year</strong></td>
+                  <td>32,485</td>
+                  <td>50,370</td>
+                  <td>415,324</td>
+                  <td><span class="engine-tag">IPM + LDLᵀ</span></td>
+                  <td>92.5 s</td>
+                  <td><span class="pill-active">✓ Exact (-1,571,173.8)</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Daily Year (PDHG)</strong></td>
+                  <td>32,485</td>
+                  <td>50,370</td>
+                  <td>415,324</td>
+                  <td><span class="engine-tag">Polished PDHG</span></td>
+                  <td>95.3 s</td>
+                  <td><span class="pill-active">✓ 2.3e-10 Rel Err</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Hourly Year</strong></td>
+                  <td>779,640</td>
+                  <td>1,208,880</td>
+                  <td>9,968,834</td>
+                  <td><span class="engine-tag">First-Order PDHG</span></td>
+                  <td>133.9 s</td>
+                  <td><span class="pill-slack">1.1e-06 Tolerance</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bench-notes">
+            <p>💡 <em>Note:</em> The daily refinery schedule with 415,324 nonzeros is solved exactly from first principles inside 92 seconds on an ordinary laptop without proprietary solver licenses.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: KKT VERIFIER ================= -->
+    <section id="tab-verifier" class="tab-content">
+      <div class="glass-card verifier-container-card">
+        <div class="card-header">
+          <div class="verifier-title-block">
+            <h3>Independent Mathematical Solution Auditor (tools/verify_solution.py)</h3>
+            <p>SANKHYA incorporates a rigorous, independent verifier that shares <strong>zero code</strong> with the solver engine. It evaluates Karush-Kuhn-Tucker (KKT) conditions directly from file inputs.</p>
+          </div>
+          <button id="run-full-audit-btn" class="btn btn-primary">Run Complete KKT Audit</button>
+        </div>
+
+        <div class="kkt-checks-grid">
+          <!-- Check 1: Primal Feasibility -->
+          <div class="kkt-card pass" id="kkt-card-primal">
+            <div class="kkt-header">
+              <span class="kkt-status-icon">✓</span>
+              <h4>1. Primal Feasibility</h4>
+            </div>
+            <div class="kkt-formula">$$l \le x \le u \quad \text{and} \quad row\_l \le Ax \le row\_u$$</div>
+            <div class="kkt-metric-row">
+              <span>Max Constraint Violation:</span>
+              <span class="text-mono highlight-green" id="kkt-viol-primal">2.22e-16</span>
+            </div>
+            <div class="kkt-metric-row">
+              <span>Tolerance Threshold:</span>
+              <span class="text-mono">1.00e-07</span>
+            </div>
+            <div class="kkt-badge pass">VERIFIED (100% FEASIBLE)</div>
+          </div>
+
+          <!-- Check 2: Dual Feasibility -->
+          <div class="kkt-card pass" id="kkt-card-dual">
+            <div class="kkt-header">
+              <span class="kkt-status-icon">✓</span>
+              <h4>2. Dual Feasibility & Reduced Costs</h4>
+            </div>
+            <div class="kkt-formula">$$r = c - A^T y \quad \text{with correct sign per bound}$$</div>
+            <div class="kkt-metric-row">
+              <span>Max Dual Violation:</span>
+              <span class="text-mono highlight-green" id="kkt-viol-dual">0.00e+00</span>
+            </div>
+            <div class="kkt-metric-row">
+              <span>Tolerance Threshold:</span>
+              <span class="text-mono">1.00e-07</span>
+            </div>
+            <div class="kkt-badge pass">VERIFIED (DUAL FEASIBLE)</div>
+          </div>
+
+          <!-- Check 3: Complementary Slackness -->
+          <div class="kkt-card pass" id="kkt-card-slack">
+            <div class="kkt-header">
+              <span class="kkt-status-icon">✓</span>
+              <h4>3. Complementary Slackness</h4>
+            </div>
+            <div class="kkt-formula">$$y_i \cdot (Ax - b)_i = 0 \quad \text{and} \quad r_j \cdot (x_j - bound_j) = 0$$</div>
+            <div class="kkt-metric-row">
+              <span>Inner Product Residual:</span>
+              <span class="text-mono highlight-green" id="kkt-viol-slack">3.14e-15</span>
+            </div>
+            <div class="kkt-metric-row">
+              <span>Tolerance Threshold:</span>
+              <span class="text-mono">1.00e-07</span>
+            </div>
+            <div class="kkt-badge pass">VERIFIED (COMPLEMENTARY)</div>
+          </div>
+
+          <!-- Check 4: Strong Duality Gap -->
+          <div class="kkt-card pass" id="kkt-card-duality">
+            <div class="kkt-header">
+              <span class="kkt-status-icon">✓</span>
+              <h4>4. Strong Duality Closure</h4>
+            </div>
+            <div class="kkt-formula">$$\text{Relative Gap} = \frac{|c^T x - b^T y|}{1 + |c^T x|} = 0$$</div>
+            <div class="kkt-metric-row">
+              <span>Primal vs Dual Objective:</span>
+              <span class="text-mono highlight-green" id="kkt-viol-duality">0.000e+00</span>
+            </div>
+            <div class="kkt-metric-row">
+              <span>Tolerance Threshold:</span>
+              <span class="text-mono">1.00e-09</span>
+            </div>
+            <div class="kkt-badge pass">EXACT BASIS PROOF</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 6: ARCHITECTURE & MATH ================= -->
+    <section id="tab-architecture" class="tab-content">
+      <div class="arch-container">
+        <div class="glass-card arch-flow-card">
+          <div class="card-header">
+            <h3>SANKHYA Algorithmic Core Blueprint</h3>
+            <span class="badge blue">Modular C++20 Pipeline</span>
+          </div>
+
+          <div class="pipeline-flow">
+            <div class="pipeline-step">
+              <div class="step-num">01</div>
+              <h4>MPS / LP Reader</h4>
+              <p>Parses Fixed/Free MPS, Ranges, QuadObj QPS into canonical <code>Model</code>.</p>
+              <span class="step-tag">src/io</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="pipeline-step">
+              <div class="step-num">02</div>
+              <h4>Presolve Stack</h4>
+              <p>Singleton rows, doubleton equations, bound tightening, empty column purge.</p>
+              <span class="step-tag">src/presolve</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="pipeline-step active-step">
+              <div class="step-num">03</div>
+              <h4>Linear Algebra Core</h4>
+              <p>CSC/CSR, Sparse Markowitz LU with threshold stability, hyper-sparse FTRAN/BTRAN.</p>
+              <span class="step-tag">src/la</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="pipeline-step">
+              <div class="step-num">04</div>
+              <h4>Solver Dispatcher</h4>
+              <p>Dual Simplex, PDHG first-order, Mehrotra IPM, Condat-Vu Convex QP, Branch & Bound.</p>
+              <span class="step-tag">src/core</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="pipeline-step">
+              <div class="step-num">05</div>
+              <h4>Postsolve & KKT Guard</h4>
+              <p>Reconstructs original duals, audits residuals via <code>recompute_quality()</code>.</p>
+              <span class="step-tag">src/core/guard</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-cards-row">
+          <div class="glass-card arch-card">
+            <h4>No 3rd-Party Solver Dependencies (Red Line)</h4>
+            <p>Every optimization routine is written from the literature and mathematical foundations:</p>
+            <ul class="clean-list">
+              <li><strong>Revised Simplex:</strong> Devex pricing (Paula Harris), bound-flipping ratio test.</li>
+              <li><strong>Sparse LU:</strong> Markowitz threshold pivoting ($u = 0.01$) + product-form basis updates.</li>
+              <li><strong>Convex QP:</strong> Condat-Vu primal-dual algorithm with exact Cholesky test.</li>
+              <li><strong>PDHG:</strong> Restarted Primal-Dual Hybrid Gradient with interior-point polish.</li>
+            </ul>
+          </div>
+
+          <div class="glass-card arch-card">
+            <h4>Industrial Robustness & Certificates</h4>
+            <p>When a model has no feasible solution, SANKHYA does not simply return an error string. It generates a mathematically checkable proof:</p>
+            <ul class="clean-list">
+              <li><strong>Infeasible Models:</strong> Generates a Farkas Certificate vector $y$ proving $A^T y \ge 0, b^T y < 0$.</li>
+              <li><strong>Unbounded Models:</strong> Generates an Unbounded Ray $d$ proving $Ad = 0, c^T d > 0$.</li>
+              <li><strong>Non-Convex QP:</strong> Emits an LDLᵀ negative pivot witness refusing spurious local optima.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden">
+    <span id="toast-message">Notification</span>
+  </div>
+
+  <script type="module" src="/data.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
