@@ -31,6 +31,7 @@
 #include "sankhya/pdhg.hpp"
 #include "sankhya/qp.hpp"
 #include "sankhya/timer.hpp"
+#include "sankhya/verify.hpp"
 #include "util/threads.hpp"
 
 #include "../simplex/primal_simplex.hpp"
@@ -310,6 +311,14 @@ void reconcile_status_with_measurement(Solution* solution, const Options& option
   }
 }
 
+void audit_and_log_trust_layer(const Model& model, const Solution& solution,
+                               const Options& options, Logger& logger) {
+  const VerificationReport verif = verify_solution(model, solution, options);
+  logger.info("Trust Layer: {} (primal: {}, dual: {}, integrality: {})",
+              to_string(verif.status), to_string(verif.primal_check),
+              to_string(verif.dual_check), to_string(verif.integrality_check));
+}
+
 Solution solve(const Model& model, const Options& options) {
   Timer timer;
   Solution solution;
@@ -439,6 +448,7 @@ Solution solve(const Model& model, const Options& options) {
     reconcile_status_with_measurement(&solution, options, logger, /*check_dual=*/true);
     refuse_a_non_finite_answer(&solution, logger);
     keep_only_a_proved_certificate(&solution, model, logger);
+    audit_and_log_trust_layer(model, solution, options, logger);
     logger.info("Result: {}  objective {:.10g}  {} iterations  {:.3f}s",
                 to_string(solution.status), solution.objective, solution.iterations,
                 solution.solve_seconds);
@@ -455,6 +465,7 @@ Solution solve(const Model& model, const Options& options) {
     // no point exists, not a broken number. Only a claimed POINT is checked, and that
     // convention comes with kInfeasible or a limit and no values.
     refuse_a_non_finite_answer(&solution, logger);
+    audit_and_log_trust_layer(model, solution, options, logger);
     logger.info("Result: {}  objective {:.10g}  bound {:.10g}  {} nodes  {:.3f}s",
                 to_string(solution.status), solution.objective, solution.dual_bound,
                 solution.nodes, solution.solve_seconds);
@@ -469,6 +480,7 @@ Solution solve(const Model& model, const Options& options) {
     // quantity Solution::recompute_quality() tests, and applying the LP dual rule here
     // would reject correct answers. Primal feasibility and the status still have to agree.
     reconcile_status_with_measurement(&solution, options, logger, /*check_dual=*/false);
+    audit_and_log_trust_layer(model, solution, options, logger);
     logger.info("Result: {}  objective {:.10g}  {} iterations  {:.3f}s",
                 to_string(solution.status), solution.objective, solution.iterations,
                 solution.solve_seconds);
@@ -489,6 +501,7 @@ Solution solve(const Model& model, const Options& options) {
     // checked.
     solution = mip::solve_branch_and_bound(model, options, logger);
     reconcile_status_with_measurement(&solution, options, logger, /*check_dual=*/false);
+    audit_and_log_trust_layer(model, solution, options, logger);
     logger.info("Result: {}  objective {:.10g}  bound {:.10g}  {} nodes  {:.3f}s",
                 to_string(solution.status), solution.objective, solution.dual_bound,
                 solution.nodes, solution.solve_seconds);

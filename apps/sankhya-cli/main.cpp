@@ -22,6 +22,7 @@
 #include "sankhya/model.hpp"
 #include "sankhya/options.hpp"
 #include "sankhya/version.hpp"
+#include "sankhya/verify.hpp"
 
 namespace {
 
@@ -252,18 +253,24 @@ int main(int argc, char** argv) {
     if (!progress_out_path.empty()) options.set_string("progress_out", progress_out_path);
 
     const sankhya::Solution solution = sankhya::solve(model, options);
+    const sankhya::VerificationReport verif = sankhya::verify_solution(model, solution, options);
 
     fmt::print("\n{:<22}{}\n", "status", sankhya::to_string(solution.status));
+    fmt::print("{:<22}{}\n", "trust layer", sankhya::to_string(verif.status));
     if (solution.has_primal_values()) {
       fmt::print("{:<22}{:.12g}\n", "objective", solution.objective);
       fmt::print("{:<22}{:.12g}\n", "dual bound", solution.dual_bound);
     }
     fmt::print("{:<22}{}\n", "algorithm",
                solution.algorithm.empty() ? "none" : solution.algorithm);
+    fmt::print("{:<22}{}\n", "backend", sankhya::to_string(verif.selected_backend));
     fmt::print("{:<22}{}\n", "iterations", solution.iterations);
     fmt::print("{:<22}{:.4f}\n", "solve seconds", solution.solve_seconds);
-    fmt::print("{:<22}{:.3e}\n", "primal infeasibility", solution.primal_infeasibility);
-    fmt::print("{:<22}{:.3e}\n", "dual infeasibility", solution.dual_infeasibility);
+    fmt::print("{:<22}{:.3e}\n", "primal infeasibility", verif.max_primal_violation);
+    fmt::print("{:<22}{:.3e}\n", "dual infeasibility", verif.max_dual_violation);
+    if (model.has_integrality()) {
+      fmt::print("{:<22}{:.3e}\n", "integrality viol", verif.max_integrality_violation);
+    }
     if (!solution.message.empty()) fmt::print("{:<22}{}\n", "message", solution.message);
 
     std::string error;
