@@ -212,6 +212,9 @@ int main(int argc, char** argv) {
   solve_cmd->add_flag("--gpu", use_gpu,
                       "Use the CUDA backend where one is compiled in; otherwise warn and "
                       "run on the CPU (the same as --option gpu=true)");
+  std::string backend_str;
+  solve_cmd->add_option("--backend", backend_str,
+                        "Execution backend: auto (adaptive problem analyzer), cpu, gpu, hybrid");
 
   CLI::App* info_cmd = app.add_subcommand("info", "Report the dimensions of a model file");
   std::string info_path;
@@ -234,6 +237,7 @@ int main(int argc, char** argv) {
   if (!apply_options(option_assignments, &options)) return 2;
   if (time_limit > 0.0) options.set_double("time_limit", time_limit);
   if (use_gpu) options.set_bool("gpu", true);
+  if (!backend_str.empty()) options.set_string("backend", backend_str);
 
   if (info_cmd->parsed()) {
     sankhya::Model model;

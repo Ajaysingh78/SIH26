@@ -19,6 +19,7 @@
 
 #include "core/status_guard.hpp"
 #include "presolve/presolve.hpp"
+#include "sankhya/adaptive.hpp"
 #include "sankhya/certificate.hpp"
 #include "sankhya/device.hpp"
 #include "sankhya/gpu_runtime.hpp"
@@ -335,6 +336,26 @@ Solution solve(const Model& model, const Options& options) {
               model.num_cols(), model.num_nonzeros(), model.num_integer_columns());
   logger.info("Problem class: {}", class_name(problem_class));
 
+  // Adaptive problem analysis and backend selection (Phase 2 Feature 2)
+  const ProblemCharacteristics chars = analyze_problem(model);
+  const AdaptiveConfig adaptive_cfg = load_adaptive_config(options);
+  const BackendDecision decision = select_backend(chars, options, adaptive_cfg);
+
+  if (adaptive_cfg.explain_decision) {
+    logger.info("Adaptive backend: {} (requested: {})", to_string(decision.selected_backend),
+                to_string(decision.requested_mode));
+    logger.info("{}", decision.format_explanation());
+  }
+
+  if (!decision.is_valid) {
+    solution.status = SolveStatus::kNotSolved;
+    solution.algorithm = "none";
+    solution.message = decision.primary_reason;
+    logger.error("{}", solution.message);
+    solution.solve_seconds = timer.elapsed_seconds();
+    return solution;
+  }
+
   if (problem_class == ProblemClass::kLp) {
     const std::string requested = options.get_string("algorithm");
 
@@ -380,15 +401,8 @@ Solution solve(const Model& model, const Options& options) {
       return solution;
     }
 
-    const ExecutionContext exec_ctx = resolve_execution_context(options);
-    if (exec_ctx.is_gpu()) {
-      if (gpu::is_cuda_available()) {
-        logger.info("GPU acceleration enabled: using CUDA execution backend");
-      } else {
-        // Honest fallback: the CPU build must work with zero CUDA installed, and --gpu must never crash.
-        logger.warning(
-            "--gpu requested but CUDA is not available in this environment/build; running on CPU");
-      }
+    if (decision.selected_backend == DeviceBackend::kGpu) {
+      logger.info("GPU acceleration enabled: using CUDA execution backend");
     }
 
     // PRESOLVE RUNS HERE, not inside an engine. The reductions are properties of the model,

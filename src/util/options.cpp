@@ -221,8 +221,44 @@ const std::vector<OptionSpec>& Options::registry() {
                  OptionType::Bool,
                  false,
                  "Use the CUDA backend where one is compiled in (the CLI spells it --gpu); "
-                 "otherwise warn once and run on the CPU. No build carries the backend yet "
-                 "(#16-#19).",
+                 "otherwise warn once and run on the CPU. Equivalent to --backend=gpu.",
+                 0.0,
+                 0.0,
+                 {}});
+    s.push_back({"backend",
+                 OptionType::String,
+                 std::string("auto"),
+                 "Execution target backend: auto (adaptive problem analyzer selects CPU or GPU), "
+                 "cpu (force host CPU), gpu (force CUDA GPU, failing explicitly if unavailable), "
+                 "or hybrid (reserved for future coordinated CPU+GPU execution).",
+                 0.0,
+                 0.0,
+                 {"auto", "cpu", "gpu", "hybrid"}});
+    s.push_back({"adaptive_min_nnz",
+                 OptionType::Int,
+                 std::int64_t{50000},
+                 "Minimum nonzeros required for auto backend to select GPU offloading (Phase 2).",
+                 0.0,
+                 1e9,
+                 {}});
+    s.push_back({"adaptive_min_dim",
+                 OptionType::Int,
+                 std::int64_t{1000},
+                 "Minimum row or column dimension required for auto backend to select GPU offloading (Phase 2).",
+                 0.0,
+                 1e9,
+                 {}});
+    s.push_back({"adaptive_min_density",
+                 OptionType::Double,
+                 1e-6,
+                 "Minimum matrix density for auto backend to consider GPU offloading (Phase 2).",
+                 0.0,
+                 1.0,
+                 {}});
+    s.push_back({"adaptive_explain",
+                 OptionType::Bool,
+                 true,
+                 "Log human-readable explanation of backend routing decision (Phase 2).",
                  0.0,
                  0.0,
                  {}});
