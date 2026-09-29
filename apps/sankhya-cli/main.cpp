@@ -23,6 +23,7 @@
 #include "sankhya/options.hpp"
 #include "sankhya/version.hpp"
 #include "sankhya/verify.hpp"
+#include "sankhya/refinery.hpp"
 
 namespace {
 
@@ -222,6 +223,17 @@ int main(int argc, char** argv) {
   info_cmd->add_option("file", info_path, "Model file (.mps, .lp)")->required();
   info_cmd->add_option("--option", option_assignments, "Set a solver option (name=value)");
 
+  CLI::App* refinery_cmd = app.add_subcommand("refinery", "MRPL-style synthetic refinery optimization digital twin");
+  std::string scenario_name = "baseline";
+  refinery_cmd->add_option("--scenario", scenario_name,
+                           "Scenario: baseline, high_demand, limited_crude, unit_constraint, quality_constraint, infeasible");
+  bool compare_baseline = false;
+  refinery_cmd->add_flag("--compare", compare_baseline, "Perform what-if differential comparison against baseline");
+  bool enable_milp = false;
+  refinery_cmd->add_flag("--milp", enable_milp, "Enable discrete unit activation constraints (MILP)");
+  double qp_weight = 0.0;
+  refinery_cmd->add_option("--qp", qp_weight, "Quadratic penalty weight on product demand deviation (QP)");
+
   CLI11_PARSE(app, argc, argv);
 
   if (version_cmd->parsed()) {
@@ -245,6 +257,34 @@ int main(int argc, char** argv) {
     if (!load_model(info_path, options, &model)) return 3;
     print_model_info(model);
     return 0;
+  }
+
+  if (refinery_cmd->parsed()) {
+    using namespace sankhya::refinery;
+    ScenarioType st = ScenarioType::kBaseline;
+    if (scenario_name == "high_demand") st = ScenarioType::kHighDemand;
+    else if (scenario_name == "limited_crude") st = ScenarioType::kLimitedCrude;
+    else if (scenario_name == "unit_constraint") st = ScenarioType::kUnitConstraint;
+    else if (scenario_name == "quality_constraint") st = ScenarioType::kQualityConstraint;
+    else if (scenario_name == "infeasible") st = ScenarioType::kInfeasibleDemand;
+
+    RefineryTwin twin;
+    ScenarioConfig cfg = twin.create_scenario(st);
+    cfg.enable_discrete_milp = enable_milp;
+    cfg.quadratic_penalty_weight = qp_weight;
+
+    const RefineryResult res = twin.run_scenario(cfg, options);
+    fmt::print("{}\n", res.summary_text);
+
+    if (compare_baseline && st != ScenarioType::kBaseline) {
+      ScenarioConfig base_cfg = twin.create_scenario(ScenarioType::kBaseline);
+      base_cfg.enable_discrete_milp = enable_milp;
+      base_cfg.quadratic_penalty_weight = qp_weight;
+      const RefineryResult base_res = twin.run_scenario(base_cfg, options);
+      const ScenarioComparison comp = RefineryTwin::compare_scenarios(base_res, res);
+      fmt::print("{}\n", comp.comparative_analysis_report);
+    }
+    return res.solver_solution.status == sankhya::SolveStatus::kOptimal ? 0 : 1;
   }
 
   if (solve_cmd->parsed()) {

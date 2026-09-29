@@ -32,6 +32,7 @@ add_executable(sankhya_tests
   unit/test_gpu.cpp
   unit/test_adaptive.cpp
   unit/test_verify.cpp
+  unit/test_refinery.cpp
   unit/test_qp.cpp
   unit/test_branch_and_bound.cpp
   # The verification spine (Phase 3). The oracle is exact-arithmetic reference code
