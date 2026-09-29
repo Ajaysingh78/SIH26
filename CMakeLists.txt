@@ -203,7 +203,20 @@ set(SANKHYA_CORE_SOURCES
   src/simplex/primal_simplex.cpp
   src/util/logging.cpp
   src/util/options.cpp
-  src/util/version.cpp)
+  src/util/version.cpp
+  src/gpu/gpu_ops_cpu.cpp)
+
+if(SANKHYA_ENABLE_CUDA)
+  enable_language(CUDA)
+  set(CMAKE_CUDA_STANDARD 20)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  list(APPEND SANKHYA_CORE_SOURCES
+    src/gpu/gpu_runtime_cuda.cu
+    src/gpu/cuda_kernels.cu)
+else()
+  list(APPEND SANKHYA_CORE_SOURCES
+    src/gpu/gpu_runtime_stub.cpp)
+endif()
 
 add_library(sankhya_objects OBJECT ${SANKHYA_CORE_SOURCES})
 
@@ -229,7 +242,6 @@ target_compile_definitions(sankhya_objects PRIVATE
   SANKHYA_COMPILER="${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
 if(SANKHYA_ENABLE_CUDA)
-  enable_language(CUDA)
   target_compile_definitions(sankhya_objects PUBLIC SANKHYA_ENABLE_CUDA)
 endif()
 

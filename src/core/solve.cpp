@@ -20,6 +20,8 @@
 #include "core/status_guard.hpp"
 #include "presolve/presolve.hpp"
 #include "sankhya/certificate.hpp"
+#include "sankhya/device.hpp"
+#include "sankhya/gpu_runtime.hpp"
 #include "sankhya/ipm.hpp"
 #include "sankhya/logging.hpp"
 #include "sankhya/mip.hpp"
@@ -378,11 +380,15 @@ Solution solve(const Model& model, const Options& options) {
       return solution;
     }
 
-    if (options.get_bool("gpu")) {
-      // Honest fallback, per CLAUDE.md: the CPU build must work with zero CUDA installed,
-      // and --gpu must never crash. No CUDA backend is compiled in yet, so say so once.
-      logger.warning(
-          "--gpu requested but this build has no CUDA backend compiled in; running on CPU");
+    const ExecutionContext exec_ctx = resolve_execution_context(options);
+    if (exec_ctx.is_gpu()) {
+      if (gpu::is_cuda_available()) {
+        logger.info("GPU acceleration enabled: using CUDA execution backend");
+      } else {
+        // Honest fallback: the CPU build must work with zero CUDA installed, and --gpu must never crash.
+        logger.warning(
+            "--gpu requested but CUDA is not available in this environment/build; running on CPU");
+      }
     }
 
     // PRESOLVE RUNS HERE, not inside an engine. The reductions are properties of the model,
