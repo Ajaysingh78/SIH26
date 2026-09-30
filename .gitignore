@@ -32,3 +32,6 @@ data/mittelmann/*.part
 
 # Web UI build outputs
 web-ui/dist/
+node_modules/
+**/node_modules/
+
