@@ -199,12 +199,36 @@ class TestDashboardBackendE2E(unittest.TestCase):
             'unit-card-cdu',
             'unit-card-dhds',
             'refinery-canvas',
-            'whatif-modal'
+            'whatif-modal',
+            'decision-intelligence-panel'
         ]
         for elem in required_elements:
             self.assertIn(elem, html_content, f"Missing element ID in dist/index.html: {elem}")
         print("[PASS] Test 9: Production frontend build artifacts verified.")
 
+    def test_10_decision_intelligence_api(self):
+        """Validate Phase 2 Feature 7 Decision Intelligence API endpoint and embedded payload."""
+        # 1. Direct GET endpoint
+        di_data = self.get_json('/api/decision-intelligence?scenario=baseline')
+        self.assertIn('audit_gate', di_data)
+        self.assertTrue(di_data['audit_gate']['is_authoritative'])
+        self.assertEqual(di_data['audit_gate']['status_badge'], 'VERIFIED OPTIMAL')
+        self.assertIn('executive_summary', di_data)
+        self.assertIn('bottleneck_intelligence', di_data)
+        self.assertIn('actionable_recommendations', di_data)
+
+        # 2. Embedded in /api/optimize
+        opt_data = self.post_json('/api/optimize', {'scenario': 'baseline', 'backend': 'cpu'})
+        self.assertIn('decision_intelligence', opt_data)
+        self.assertEqual(opt_data['decision_intelligence']['scenario_key'], 'baseline')
+
+        # 3. Embedded differential in /api/compare
+        comp_data = self.get_json('/api/compare?baseline=baseline&scenario=limited_crude')
+        self.assertIn('differential_intelligence', comp_data)
+        self.assertIsNotNone(comp_data['differential_intelligence'])
+        print("[PASS] Test 10: Decision Intelligence REST API and embedded structures verified.")
+
 
 if __name__ == '__main__':
     unittest.main()
+

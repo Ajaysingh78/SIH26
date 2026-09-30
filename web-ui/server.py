@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from refinery_engine import RefineryDigitalTwinBackend, SCENARIO_DEFINITIONS
+from decision_intelligence import IndustrialDecisionEngine
 
 WEB_UI_DIR = Path(__file__).resolve().parent
 DIST_DIR = WEB_UI_DIR / "dist"
@@ -74,6 +75,8 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
             self._handle_analyze(query_params)
         elif url_path == "/api/compare":
             self._handle_compare(query_params)
+        elif url_path == "/api/decision-intelligence":
+            self._handle_decision_intelligence(query_params)
         else:
             # Fallback: Serve static assets from dist/ or web-ui/
             self._serve_static(url_path)
@@ -88,6 +91,8 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
             self._handle_optimize(body)
         elif url_path == "/api/compare":
             self._handle_compare(body)
+        elif url_path == "/api/decision-intelligence":
+            self._handle_decision_intelligence(body)
         else:
             self._send_json({"error": f"Endpoint not found: {url_path}"}, HTTPStatus.NOT_FOUND)
 
@@ -105,7 +110,7 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
             "status": "ok",
             "engine": "SANKHYA Sovereign C++ / Python Engine",
             "version": "1.0.0",
-            "git_commit": "2363ea4",
+            "git_commit": "fb6ff51",
             "features_active": [
                 "Phase 1: Foundation (Simplex, Sparse LU/LDLT, Cuts, Presolve, IPM)",
                 "Phase 2 Feature 1: Real GPU Foundation & Device Layer",
@@ -113,6 +118,8 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
                 "Phase 2 Feature 3: Advanced Independent Verification / Trust Layer",
                 "Phase 2 Feature 4: MRPL Refinery Optimization Digital Twin",
                 "Phase 2 Feature 5: Industrial Optimization Dashboard",
+                "Phase 2 Feature 6: Reproducible Benchmark Laboratory",
+                "Phase 2 Feature 7: Industrial Decision Intelligence (Deterministic Insights & Verified Gate)",
             ],
             "cuda_hardware_present": has_cuda,
             "host_platform": sys.platform,
@@ -247,6 +254,12 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
             "active_bottlenecks": kpis.get("binding_bottlenecks", []) if res["solver_status"] == "OPTIMAL" else ["HSD Diesel Demand Exceeds Distillation Yield Capacity"],
             "summary_text": res.get("summary_text", ""),
         }
+
+        # Decision Intelligence (Phase 2 Feature 7)
+        base_res = RefineryDigitalTwinBackend.run("baseline", backend_req) if scenario_key != "baseline" else None
+        decision_pkg = IndustrialDecisionEngine.synthesize_decision_package(res, base_res)
+        response["decision_intelligence"] = decision_pkg.to_dict()
+
         self._send_json(response)
 
     def _handle_compare(self, params: Dict[str, Any]) -> None:
@@ -257,6 +270,10 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
         if not comp.get("comparable", True):
             self._send_json(comp)
             return
+
+        base_res = RefineryDigitalTwinBackend.run(base_key)
+        target_res = RefineryDigitalTwinBackend.run(target_key)
+        diff_intel = IndustrialDecisionEngine.evaluate_scenario_differential(base_res, target_res)
 
         margin_delta_usd = round(comp["margin_delta_k_usd"] * 1000.0, 2)
         response = {
@@ -272,8 +289,20 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
             "unit_throughput_shifts_kbpd": comp.get("unit_deltas", {}),
             "product_yield_shifts_kbpd": comp.get("prod_deltas", {}),
             "summary": comp.get("summary", ""),
+            "differential_intelligence": diff_intel.to_dict() if diff_intel else None,
         }
         self._send_json(response)
+
+    def _handle_decision_intelligence(self, params: Dict[str, Any]) -> None:
+        scenario_key = params.get("scenario", "baseline")
+        backend_req = params.get("backend", "auto")
+        base_key = params.get("baseline", "baseline")
+
+        res = RefineryDigitalTwinBackend.run(scenario_key, backend_req)
+        base_res = RefineryDigitalTwinBackend.run(base_key, backend_req) if base_key != scenario_key else None
+
+        pkg = IndustrialDecisionEngine.synthesize_decision_package(res, base_res)
+        self._send_json(pkg.to_dict())
 
     def _serve_static(self, rel_path: str) -> None:
         if rel_path in ("/", ""):

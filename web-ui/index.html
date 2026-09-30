@@ -597,6 +597,94 @@
           </div>
         </div>
       </div>
+
+      <!-- ================= DECISION INTELLIGENCE SECTION (Feature 7) ================= -->
+      <div class="glass-card decision-intelligence-card" id="decision-intelligence-panel" style="margin-top: 1.5rem; padding: 1.5rem;">
+        <div class="card-header" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 1.35rem;">🧠</span>
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem;">Industrial Decision Intelligence</h3>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">Deterministic, solver-derived operational guidance & verified bottleneck diagnostics</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="badge" id="di-gate-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+              🛡️ VERIFIED OPTIMAL
+            </span>
+            <span class="badge blue" id="di-benchmark-badge">
+              ⚡ SIMD Simplex
+            </span>
+          </div>
+        </div>
+
+        <!-- Verified-Result Gate Message -->
+        <div id="di-gate-banner" class="di-gate-banner" style="padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.85rem; background: rgba(16, 185, 129, 0.08); border-left: 4px solid #10b981;">
+          <span id="di-gate-message">Solution mathematically verified by Independent Trust Layer. All primal bounds, dual feasibility, and KKT residuals satisfy tolerances. Authoritative industrial decision recommendations are fully unlocked.</span>
+        </div>
+
+        <!-- Executive Headline Box -->
+        <div class="di-headline-box" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-cyan); font-weight: 600; margin-bottom: 0.35rem;">Operational Executive Summary</div>
+          <div id="di-headline-text" style="font-size: 1.05rem; font-weight: 600; color: #fff; line-height: 1.4; margin-bottom: 0.5rem;">
+            Refinery captures $2,177.31k/day Net Operating Margin ($7.26/bbl GRM) across 300.0 kbpd crude charge.
+          </div>
+          <div id="di-narrative-text" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.45;">
+            The optimization plan processes 300.0 kbpd of mixed crude basket to yield 273.1 kbpd of clean fuels and products. Gross revenue is $26,313.51k/day against total feedstock spend of $23,140.00k/day.
+          </div>
+        </div>
+
+        <!-- Intelligence Breakdown 3-Column Grid -->
+        <div class="di-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+          
+          <!-- Column 1: Critical Bottlenecks -->
+          <div class="di-subcard" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; color: #f59e0b;">⚠️ Binding Bottlenecks</span>
+              <span class="badge warn" id="di-bottleneck-count">1 Active</span>
+            </div>
+            <div id="di-bottlenecks-list" style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem;">
+              <!-- Dynamic bottleneck items -->
+            </div>
+          </div>
+
+          <!-- Column 2: Commercial & Yield Intelligence -->
+          <div class="di-subcard" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; color: #38bdf8;">📈 Commercial & Product Mix</span>
+              <span class="badge blue" id="di-primary-rev-badge">HSD Diesel</span>
+            </div>
+            <div id="di-production-insights-list" style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem;">
+              <!-- Dynamic commercial insights -->
+            </div>
+          </div>
+
+          <!-- Column 3: Resource & Feedstock Utilization -->
+          <div class="di-subcard" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <span style="font-weight: 600; font-size: 0.9rem; color: #10b981;">⛽ Feedstock & Units</span>
+              <span class="badge green" id="di-crude-exh-badge">5/6 Crudes</span>
+            </div>
+            <div id="di-resource-insights-list" style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.82rem;">
+              <!-- Dynamic resource insights -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Actionable Engineering Recommendations -->
+        <div class="di-recommendations-box" style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 1rem 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="font-weight: 600; font-size: 0.92rem; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🎯</span>
+              <span>Actionable Operational Recommendations (Solver-Derived)</span>
+            </div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Grounded in KKT Duals & Constraint Slacks</span>
+          </div>
+          <div id="di-recommendations-list" style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <!-- Dynamic actionable recommendations -->
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- What-If Comparison Modal (Task 10) -->
