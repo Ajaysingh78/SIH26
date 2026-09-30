@@ -29,3 +29,6 @@ bench/large/
 data/mittelmann/*.bz2
 data/mittelmann/*.mps
 data/mittelmann/*.part
+
+# Web UI build outputs
+web-ui/dist/

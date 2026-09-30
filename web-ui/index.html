@@ -83,146 +83,446 @@
     
     <!-- ================= TAB 1: MRPL REFINERY TWIN ================= -->
     <section id="tab-refinery" class="tab-content active">
-      <div class="hero-strip">
+      
+      <!-- Backend Connection & Engine Status Banner -->
+      <div id="backend-status-banner" class="backend-banner">
+        <div class="backend-banner-status">
+          <span class="pulse-dot green" id="backend-status-dot"></span>
+          <span id="backend-status-text">Backend Connected: SANKHYA Sovereign C++ / Python Engine</span>
+        </div>
+        <div class="backend-banner-mode" id="backend-banner-mode">
+          HTTP REST API · http://127.0.0.1:8000
+        </div>
+      </div>
+
+      <!-- Industrial Workflow Stepper: MODEL -> ANALYZE -> BACKEND DECISION -> OPTIMIZE -> VERIFY -> RESULTS -> INSIGHTS -->
+      <div class="workflow-stepper" id="workflow-stepper">
+        <div class="stepper-step completed" id="step-model">
+          <span class="step-idx">1</span>
+          <span class="step-title">MODEL</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-analyze">
+          <span class="step-idx">2</span>
+          <span class="step-title">ANALYZE</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-decision">
+          <span class="step-idx">3</span>
+          <span class="step-title">BACKEND DECISION</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-optimize">
+          <span class="step-idx">4</span>
+          <span class="step-title">OPTIMIZE</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-verify">
+          <span class="step-idx">5</span>
+          <span class="step-title">VERIFY</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-results">
+          <span class="step-idx">6</span>
+          <span class="step-title">RESULTS</span>
+        </div>
+        <span class="stepper-separator">→</span>
+        <div class="stepper-step completed" id="step-insights">
+          <span class="step-idx">7</span>
+          <span class="step-title">INSIGHTS</span>
+        </div>
+      </div>
+
+      <!-- Control Strip: Scenario Selection, Backend Route, and Actions -->
+      <div class="control-strip">
+        <div class="scenario-controls-group">
+          <div class="control-item">
+            <label for="scenario-select">Refinery Scenario:</label>
+            <select id="scenario-select" class="scenario-select">
+              <option value="baseline">Baseline (Normal 300 kbpd Operations)</option>
+              <option value="high_demand">High Demand (+20% Finished Products)</option>
+              <option value="limited_crude">Limited Sweet Crude (Bonny Light capped 25 kbpd)</option>
+              <option value="unit_constraint">Unit Constraint (FCC Maintenance 35 kbpd)</option>
+              <option value="quality_constraint">Strict Quality (BS-VI 8 ppm Ultra-Low Sulfur)</option>
+              <option value="infeasible_demand">Infeasible Demand (Stress Test 250 kbpd Diesel)</option>
+            </select>
+          </div>
+
+          <div class="control-item">
+            <label>Backend Execution:</label>
+            <div class="backend-toggle-group">
+              <button class="backend-toggle-btn active" id="backend-btn-auto" data-backend="auto">AUTO</button>
+              <button class="backend-toggle-btn" id="backend-btn-cpu" data-backend="cpu">CPU</button>
+              <button class="backend-toggle-btn" id="backend-btn-gpu" data-backend="gpu">GPU</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-btn-group">
+          <button id="refinery-solve-btn" class="btn btn-primary glow-button">
+            <span class="btn-icon">⚡</span>
+            <span id="refinery-solve-btn-text">Execute Optimization</span>
+          </button>
+          <button id="what-if-btn" class="btn btn-secondary">
+            <span>📊 What-If Comparison</span>
+          </button>
+          <button id="refinery-reset-btn" class="btn btn-secondary">
+            <span>↺ Reset</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Problem Analysis & Hardware Routing Panel (Feature 2 & 1) -->
+      <div class="analysis-panel">
+        <div class="analysis-card highlight">
+          <div class="analysis-card-header">
+            <span>Problem Classification</span>
+            <span class="badge" id="analysis-class-badge">LP · Continuous</span>
+          </div>
+          <div class="analysis-card-val" id="analysis-formulation-type">Linear Program (LP)</div>
+          <div class="analysis-card-sub" id="analysis-formulation-desc">Convex polyhedral feasible region, single global optimum</div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-header">
+            <span>Matrix Dimensions</span>
+            <span class="tag-console" id="analysis-sparsity-tag">84.2% Sparsity</span>
+          </div>
+          <div class="analysis-card-val" id="analysis-matrix-dims">16 Rows · 19 Columns</div>
+          <div class="analysis-card-sub" id="analysis-matrix-nz">48 Nonzeros · 0 Integer Variables</div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-header">
+            <span>Hardware & Workload</span>
+            <span class="tag-console" id="analysis-workload-tag">Workload: Small</span>
+          </div>
+          <div class="analysis-card-val" id="analysis-hardware-val">CPU Host (x86_64)</div>
+          <div class="analysis-card-sub" id="analysis-gpu-status">GPU Runtime Checked · Dimension &lt; 2,000 threshold</div>
+        </div>
+
+        <div class="analysis-card highlight">
+          <div class="analysis-card-header">
+            <span>Backend Decision</span>
+            <span class="badge blue" id="analysis-selected-backend">CPU Simplex</span>
+          </div>
+          <div class="analysis-card-val" id="analysis-decision-val">CPU Execution Selected</div>
+          <div class="analysis-card-sub" id="analysis-decision-reason">Small-medium formulation below parallel GPU threshold; CPU Dual Simplex selected for optimal speed and zero kernel launch latency.</div>
+        </div>
+      </div>
+
+      <!-- Trust Layer Independent Verification Card (Feature 3) -->
+      <div class="trust-layer-card verified" id="trust-card">
+        <div class="trust-header">
+          <div>
+            <h3 style="font-size: 1.1rem; color: #fff; margin-bottom: 0.25rem;">Independent Mathematical Trust Layer (Feature 3)</h3>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Audited by solver-independent Karush-Kuhn-Tucker (KKT) and Farkas Dual Verification Engine</span>
+          </div>
+          <div class="trust-badge-large verified" id="trust-badge">
+            <span id="trust-badge-icon">✓</span>
+            <span id="trust-badge-text">VERIFIED OPTIMAL</span>
+          </div>
+        </div>
+
+        <div class="trust-metrics-grid">
+          <div class="trust-metric-box">
+            <div class="trust-metric-title">Primal Residual ||Ax - b||</div>
+            <div class="trust-metric-val highlight-green" id="trust-primal-res">2.84e-14</div>
+            <div class="trust-metric-status" id="trust-primal-status">✓ Feasible (&lt; 1.0e-07)</div>
+          </div>
+
+          <div class="trust-metric-box">
+            <div class="trust-metric-title">Dual Residual ||Aᵀy + s - c||</div>
+            <div class="trust-metric-val highlight-green" id="trust-dual-res">0.00e+00</div>
+            <div class="trust-metric-status" id="trust-dual-status">✓ Dual Feasible</div>
+          </div>
+
+          <div class="trust-metric-box">
+            <div class="trust-metric-title">Integrality Check</div>
+            <div class="trust-metric-val highlight-green" id="trust-integrality-res">0.00e+00</div>
+            <div class="trust-metric-status" id="trust-integrality-status">✓ 100% Continuous</div>
+          </div>
+
+          <div class="trust-metric-box">
+            <div class="trust-metric-title">KKT Optimality Residual</div>
+            <div class="trust-metric-val highlight-green" id="trust-kkt-res">2.84e-14</div>
+            <div class="trust-metric-status" id="trust-kkt-status">✓ Zero Duality Gap</div>
+          </div>
+
+          <div class="trust-metric-box">
+            <div class="trust-metric-title">Audit Tolerance</div>
+            <div class="trust-metric-val" id="trust-tol-val">1.00e-07</div>
+            <div class="trust-metric-status" style="color: var(--text-dim);" id="trust-backend-val">Backend: CPU</div>
+          </div>
+        </div>
+
+        <div class="trust-disclaimer">
+          <span>🛡️</span>
+          <span><strong>Critical Trust Guarantee:</strong> Optimization Result ≠ Automatically Trusted Result. SANKHYA certifies solution optimality and feasibility independently before delivery to refinery control.</span>
+        </div>
+      </div>
+
+      <!-- Hero Financial & Operational KPIs (Task 9) -->
+      <div class="hero-strip" style="margin-bottom: 1.5rem;">
         <div class="hero-content">
-          <h2>Mangalore Refinery Crude Blending Optimizer</h2>
-          <p>Real-time linear & quadratic optimization of crude distillation feedstocks to maximize refinery margin while meeting strict BS-VI sulphur caps and diesel commitments.</p>
+          <h2>Mangalore Refinery Commercial & Process Balance</h2>
+          <p id="scenario-summary-desc">Optimal crude slate and unit processing plan maximizing gross refinery crack spread under strict BS-VI environmental standards.</p>
         </div>
         <div class="hero-stats">
           <div class="hero-stat-card">
-            <span class="stat-label">Optimal Margin</span>
-            <span class="stat-value" id="refinery-optimal-margin">$214,146 /day</span>
-            <span class="stat-trend positive">↑ Exact Analytic KKT Match</span>
+            <span class="stat-label">Net Operating Margin</span>
+            <span class="stat-value highlight-cyan" id="refinery-optimal-margin">$2,177,419 /day</span>
+            <span class="stat-trend positive" id="refinery-margin-trend">↑ Verified Optimal</span>
           </div>
           <div class="hero-stat-card">
-            <span class="stat-label">CDU Utilization</span>
-            <span class="stat-value" id="refinery-cdu-util">110.26 kbbl/d</span>
-            <span class="stat-trend neutral">91.9% of 120 kbbl/d cap</span>
+            <span class="stat-label">Total Crude Intake</span>
+            <span class="stat-value" id="refinery-cdu-util">300.00 kbpd</span>
+            <span class="stat-trend neutral" id="refinery-cdu-pct">100.0% of 300 kbpd CDU</span>
           </div>
           <div class="hero-stat-card">
-            <span class="stat-label">Sulphur Margin</span>
-            <span class="stat-value" id="refinery-sulphur-val">0.96 %wt</span>
-            <span class="stat-trend positive">✓ Clean (< 1.00 %wt)</span>
+            <span class="stat-label">Gross Revenue / Opex</span>
+            <span class="stat-value" id="refinery-gross-rev">$26.98M / $0.46M</span>
+            <span class="stat-trend positive" id="refinery-solve-meta">Solve Time: 1.85 ms</span>
           </div>
         </div>
       </div>
 
+      <!-- Refinery Units Capacity Utilization Meters (Task 8) -->
+      <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem 1.5rem;">
+        <div class="card-header" style="margin-bottom: 1rem;">
+          <h3 style="font-size: 1.05rem;">Refinery Units Capacity Utilization & Bottleneck Tracking</h3>
+          <span class="badge blue">5 Core Process Units</span>
+        </div>
+        <div class="refinery-units-grid">
+          <!-- Unit 1: CDU -->
+          <div class="unit-card" id="unit-card-cdu">
+            <div class="unit-header">
+              <span class="unit-name">CDU Distillation</span>
+              <span class="unit-tag" id="unit-tag-cdu">Cap: 300 kbpd</span>
+            </div>
+            <div class="unit-capacity-text" id="unit-text-cdu">300.0 / 300.0 kbpd (100.0%)</div>
+            <div class="unit-meter-bg">
+              <div class="unit-meter-fill" id="unit-meter-cdu" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Unit 2: VDU -->
+          <div class="unit-card" id="unit-card-vdu">
+            <div class="unit-header">
+              <span class="unit-name">VDU Vacuum</span>
+              <span class="unit-tag" id="unit-tag-vdu">Cap: 140 kbpd</span>
+            </div>
+            <div class="unit-capacity-text" id="unit-text-vdu">140.0 / 140.0 kbpd (100.0%)</div>
+            <div class="unit-meter-bg">
+              <div class="unit-meter-fill" id="unit-meter-vdu" style="width: 100%;"></div>
+            </div>
+          </div>
+
+          <!-- Unit 3: CCR -->
+          <div class="unit-card" id="unit-card-ccr">
+            <div class="unit-header">
+              <span class="unit-name">CCR Reformer</span>
+              <span class="unit-tag" id="unit-tag-ccr">Cap: 45 kbpd</span>
+            </div>
+            <div class="unit-capacity-text" id="unit-text-ccr">42.5 / 45.0 kbpd (94.4%)</div>
+            <div class="unit-meter-bg">
+              <div class="unit-meter-fill" id="unit-meter-ccr" style="width: 94.4%;"></div>
+            </div>
+          </div>
+
+          <!-- Unit 4: FCC -->
+          <div class="unit-card" id="unit-card-fcc">
+            <div class="unit-header">
+              <span class="unit-name">FCC Cracker</span>
+              <span class="unit-tag" id="unit-tag-fcc">Cap: 65 kbpd</span>
+            </div>
+            <div class="unit-capacity-text" id="unit-text-fcc">58.2 / 65.0 kbpd (89.5%)</div>
+            <div class="unit-meter-bg">
+              <div class="unit-meter-fill" id="unit-meter-fcc" style="width: 89.5%;"></div>
+            </div>
+          </div>
+
+          <!-- Unit 5: DHDS -->
+          <div class="unit-card bottleneck" id="unit-card-dhds">
+            <div class="unit-header">
+              <span class="unit-name">DHDS Hydrotreater</span>
+              <span class="unit-tag bottleneck-tag" id="unit-tag-dhds">Bottleneck (100%)</span>
+            </div>
+            <div class="unit-capacity-text" id="unit-text-dhds">110.0 / 110.0 kbpd (100.0%)</div>
+            <div class="unit-meter-bg">
+              <div class="unit-meter-fill warn" id="unit-meter-dhds" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Finished Products Yield & Demand Fulfillment Cards (Task 8 & 9) -->
+      <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem 1.5rem;">
+        <div class="card-header" style="margin-bottom: 1rem;">
+          <h3 style="font-size: 1.05rem;">Finished Product Yields & Environmental Specifications</h3>
+          <span class="badge">Commercial Product Pool</span>
+        </div>
+        <div class="products-yield-grid">
+          <div class="product-yield-card">
+            <span class="product-name">LPG (Liquefied Petroleum Gas)</span>
+            <span class="product-val" id="prod-val-lpg">12.50 kbpd</span>
+            <span class="product-spec">Price: $72/bbl · Light Ends Blend</span>
+          </div>
+
+          <div class="product-yield-card">
+            <span class="product-name">Motor Spirit (MS Gasoline)</span>
+            <span class="product-val" id="prod-val-ms">62.00 kbpd</span>
+            <span class="product-spec" id="prod-spec-ms">Price: $108/bbl · RON 91.0 min (BS-VI)</span>
+          </div>
+
+          <div class="product-yield-card">
+            <span class="product-name">Aviation Turbine Fuel (ATF)</span>
+            <span class="product-val" id="prod-val-atf">38.00 kbpd</span>
+            <span class="product-spec">Price: $112/bbl · Jet A-1 Standard</span>
+          </div>
+
+          <div class="product-yield-card">
+            <span class="product-name">High-Speed Diesel (HSD)</span>
+            <span class="product-val" id="prod-val-hsd">110.00 kbpd</span>
+            <span class="product-spec" id="prod-spec-hsd">Price: $105/bbl · Sulfur &le; 10 ppm (BS-VI)</span>
+          </div>
+
+          <div class="product-yield-card">
+            <span class="product-name">Heavy Fuel Oil (FO)</span>
+            <span class="product-val" id="prod-val-fo">45.00 kbpd</span>
+            <span class="product-spec">Price: $55/bbl · Residual Stream</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Digital Twin Grid: 6 Crudes Feedstocks & Visualizer Canvas -->
       <div class="refinery-grid">
-        <!-- Left: Crude Controls & Feedstocks -->
+        <!-- Left: 6 Crude Feedstock Allocations -->
         <div class="glass-card refinery-controls-card">
           <div class="card-header">
-            <h3>Crude Feedstock Allocations</h3>
-            <span class="badge">CDU Decision Variables</span>
+            <h3>Crude Slate Feedstock Allocation</h3>
+            <span class="badge">6 Supported Crudes</span>
           </div>
 
           <div class="crude-feed-list">
             <!-- Crude 1: Arab Light -->
             <div class="crude-card" id="crude-card-al">
               <div class="crude-header">
-                <div class="crude-tag tag-sweet">Arab Light (AL)</div>
-                <div class="crude-cost">$74.00 /bbl</div>
+                <div class="crude-tag tag-medium">Arab Light (AL)</div>
+                <div class="crude-cost">$75.00 /bbl</div>
               </div>
               <div class="crude-properties">
-                <span class="prop">Diesel Yield: <strong>30%</strong></span>
-                <span class="prop">Sulphur: <strong>1.80%</strong></span>
-                <span class="prop margin-prop">Margin: <strong>+$2.40/bbl</strong></span>
+                <span class="prop">API: <strong>33.4</strong></span>
+                <span class="prop">S: <strong>1.80%</strong></span>
+                <span class="prop">HSD Yield: <strong>32.0%</strong></span>
               </div>
               <div class="crude-slider-container">
                 <div class="slider-header">
                   <span>Charge Rate:</span>
-                  <span class="slider-val" id="val-al">10.00 kbbl/d</span>
+                  <span class="slider-val" id="val-al">50.00 kbpd</span>
                 </div>
-                <input type="range" id="slider-al" min="0" max="60" step="0.5" value="10.0" class="styled-range">
-                <div class="slider-limits">
-                  <span>Min: 10.0 kbbl/d (LO)</span>
-                  <span>Uncapped (UP)</span>
-                </div>
+                <input type="range" id="slider-al" min="0" max="100" step="1" value="50" class="styled-range">
               </div>
             </div>
 
-            <!-- Crude 2: Bonny Light -->
+            <!-- Crude 2: Arab Heavy -->
+            <div class="crude-card" id="crude-card-ah">
+              <div class="crude-header">
+                <div class="crude-tag tag-medium">Arab Heavy (AH)</div>
+                <div class="crude-cost">$68.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">API: <strong>27.9</strong></span>
+                <span class="prop">S: <strong>2.80%</strong></span>
+                <span class="prop">HSD Yield: <strong>28.0%</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-ah">60.00 kbpd</span>
+                </div>
+                <input type="range" id="slider-ah" min="0" max="100" step="1" value="60" class="styled-range">
+              </div>
+            </div>
+
+            <!-- Crude 3: Bonny Light -->
             <div class="crude-card" id="crude-card-bn">
               <div class="crude-header">
                 <div class="crude-tag tag-sweet">Bonny Light (BN)</div>
-                <div class="crude-cost">$79.00 /bbl</div>
+                <div class="crude-cost">$82.00 /bbl</div>
               </div>
               <div class="crude-properties">
-                <span class="prop">Diesel Yield: <strong>45%</strong></span>
-                <span class="prop">Sulphur: <strong>0.14%</strong></span>
-                <span class="prop margin-prop">Margin: <strong>+$1.60/bbl</strong></span>
+                <span class="prop">API: <strong>35.3</strong></span>
+                <span class="prop">S: <strong>0.14%</strong></span>
+                <span class="prop">HSD Yield: <strong>44.0%</strong></span>
               </div>
               <div class="crude-slider-container">
                 <div class="slider-header">
                   <span>Charge Rate:</span>
-                  <span class="slider-val" id="val-bn">45.00 kbbl/d</span>
+                  <span class="slider-val" id="val-bn">50.00 kbpd</span>
                 </div>
-                <input type="range" id="slider-bn" min="0" max="60" step="0.5" value="45.0" class="styled-range">
-                <div class="slider-limits">
-                  <span>Min: 0.0 kbbl/d</span>
-                  <span>Max: 45.0 kbbl/d (UP)</span>
-                </div>
+                <input type="range" id="slider-bn" min="0" max="80" step="1" value="50" class="styled-range">
               </div>
             </div>
 
-            <!-- Crude 3: Murban -->
+            <!-- Crude 4: Basrah Medium -->
+            <div class="crude-card" id="crude-card-bm">
+              <div class="crude-header">
+                <div class="crude-tag tag-medium">Basrah Medium (BM)</div>
+                <div class="crude-cost">$71.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">API: <strong>29.5</strong></span>
+                <span class="prop">S: <strong>2.50%</strong></span>
+                <span class="prop">HSD Yield: <strong>30.0%</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-bm">40.00 kbpd</span>
+                </div>
+                <input type="range" id="slider-bm" min="0" max="80" step="1" value="40" class="styled-range">
+              </div>
+            </div>
+
+            <!-- Crude 5: Murban -->
             <div class="crude-card" id="crude-card-mu">
               <div class="crude-header">
-                <div class="crude-tag tag-medium">Murban (MU)</div>
-                <div class="crude-cost">$77.00 /bbl</div>
+                <div class="crude-tag tag-sweet">Murban (MU)</div>
+                <div class="crude-cost">$78.00 /bbl</div>
               </div>
               <div class="crude-properties">
-                <span class="prop">Diesel Yield: <strong>38%</strong></span>
-                <span class="prop">Sulphur: <strong>0.78%</strong></span>
-                <span class="prop margin-prop">Margin: <strong>+$1.64/bbl</strong></span>
+                <span class="prop">API: <strong>40.5</strong></span>
+                <span class="prop">S: <strong>0.78%</strong></span>
+                <span class="prop">HSD Yield: <strong>38.0%</strong></span>
               </div>
               <div class="crude-slider-container">
                 <div class="slider-header">
                   <span>Charge Rate:</span>
-                  <span class="slider-val" id="val-mu">55.26 kbbl/d</span>
+                  <span class="slider-val" id="val-mu">60.00 kbpd</span>
                 </div>
-                <input type="range" id="slider-mu" min="0" max="70" step="0.5" value="55.26" class="styled-range">
-                <div class="slider-limits">
-                  <span>Min: 0.0 kbbl/d</span>
-                  <span>Max: 60.0 kbbl/d (UP)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Refinery Constraint Targets -->
-          <div class="constraints-section">
-            <h4>Refinery Operational Targets & Market Demands</h4>
-            <div class="target-controls">
-              <div class="target-item">
-                <label for="target-diesel">Diesel Pool Commitment (kbbl/d):</label>
-                <div class="target-input-row">
-                  <input type="number" id="target-diesel" value="40" min="20" max="60" step="1">
-                  <span class="unit">kbbl/d</span>
-                </div>
-              </div>
-              <div class="target-item">
-                <label for="target-cdu-max">CDU Max Capacity (kbbl/d):</label>
-                <div class="target-input-row">
-                  <input type="number" id="target-cdu-max" value="120" min="90" max="150" step="5">
-                  <span class="unit">kbbl/d</span>
-                </div>
-              </div>
-              <div class="target-item">
-                <label for="target-sulphur">Max Sulphur (%wt limit):</label>
-                <div class="target-input-row">
-                  <input type="number" id="target-sulphur" value="1.00" min="0.5" max="2.0" step="0.05">
-                  <span class="unit">%wt</span>
-                </div>
+                <input type="range" id="slider-mu" min="0" max="100" step="1" value="60" class="styled-range">
               </div>
             </div>
 
-            <div class="action-buttons-row">
-              <button id="refinery-solve-btn" class="btn btn-primary full-width">
-                <span>⚡ Re-Optimize with SANKHYA Dual Simplex</span>
-              </button>
-              <button id="refinery-reset-btn" class="btn btn-secondary">
-                <span>Reset to MRPL Demo Baseline</span>
-              </button>
+            <!-- Crude 6: Maya -->
+            <div class="crude-card" id="crude-card-my">
+              <div class="crude-header">
+                <div class="crude-tag tag-heavy">Maya Heavy (MY)</div>
+                <div class="crude-cost">$62.00 /bbl</div>
+              </div>
+              <div class="crude-properties">
+                <span class="prop">API: <strong>21.8</strong></span>
+                <span class="prop">S: <strong>3.40%</strong></span>
+                <span class="prop">HSD Yield: <strong>24.0%</strong></span>
+              </div>
+              <div class="crude-slider-container">
+                <div class="slider-header">
+                  <span>Charge Rate:</span>
+                  <span class="slider-val" id="val-my">40.00 kbpd</span>
+                </div>
+                <input type="range" id="slider-my" min="0" max="60" step="1" value="40" class="styled-range">
+              </div>
             </div>
           </div>
         </div>
@@ -233,18 +533,18 @@
           <div class="glass-card schematic-card">
             <div class="card-header">
               <h3>MRPL Mangalore Process Flow Digital Twin</h3>
-              <span class="badge blue">Live Balance</span>
+              <span class="badge blue">Live Mass & Quality Balance</span>
             </div>
             <div class="schematic-canvas-container">
               <canvas id="refinery-canvas" width="680" height="340"></canvas>
             </div>
           </div>
 
-          <!-- Shadow Prices / Economic Sensitivities -->
+          <!-- Active Binding Constraints & Economic Shadow Prices -->
           <div class="glass-card shadow-prices-card">
             <div class="card-header">
-              <h3>Refinery Shadow Prices (Dual Simplex $\pi$)</h3>
-              <span class="badge purple">Industrial Dual Multipliers</span>
+              <h3>Binding Refinery Constraints & Dual Multipliers ($\pi$)</h3>
+              <span class="badge purple">Industrial Dual Sensitivities</span>
             </div>
             <div class="shadow-prices-table-container">
               <table class="data-table">
@@ -252,44 +552,44 @@
                   <tr>
                     <th>Constraint Row</th>
                     <th>Nominal Limit</th>
-                    <th>Current Value</th>
-                    <th>Slack / Margin</th>
-                    <th>Shadow Price (Dual $\pi$)</th>
-                    <th>Economic Meaning for MRPL</th>
+                    <th>Optimal Value</th>
+                    <th>Status</th>
+                    <th>Shadow Price ($\pi$)</th>
+                    <th>Economic Significance</th>
                   </tr>
                 </thead>
                 <tbody id="shadow-prices-body">
                   <tr>
-                    <td><strong>DIESEL</strong> (Equality)</td>
-                    <td>40.00 kbbl/d</td>
-                    <td id="sp-diesel-cur">40.00</td>
-                    <td><span class="pill-active">Binding (0 slack)</span></td>
-                    <td class="text-mono highlight-gold" id="sp-diesel-val">+$4.316 /bbl</td>
-                    <td>Value to MRPL of expanding diesel delivery commitment by 1 bbl</td>
+                    <td><strong>CDU Capacity</strong></td>
+                    <td>300.0 kbpd</td>
+                    <td id="sp-cdu-val">300.0 kbpd</td>
+                    <td><span class="pill-active">Binding (100%)</span></td>
+                    <td class="text-mono highlight-gold">+$4.25 /bbl</td>
+                    <td>Value of adding 1 bbl/d CDU distillation capacity</td>
                   </tr>
                   <tr>
-                    <td><strong>SULPHUR</strong> (Upper Bound)</td>
-                    <td>≤ 1.00 %wt</td>
-                    <td id="sp-sulphur-cur">0.96 %wt</td>
-                    <td><span class="pill-slack">+0.04 %wt Slack</span></td>
-                    <td class="text-mono highlight-cyan" id="sp-sulphur-val">$0.00 /%wt</td>
-                    <td>Slack constraint; relaxing limit yields $0 marginal gain</td>
+                    <td><strong>DHDS Hydrotreating</strong></td>
+                    <td>110.0 kbpd</td>
+                    <td id="sp-dhds-val">110.0 kbpd</td>
+                    <td><span class="pill-active">Binding (Bottleneck)</span></td>
+                    <td class="text-mono highlight-gold">+$6.80 /bbl</td>
+                    <td>Marginal profit of increasing desulfurization capacity</td>
                   </tr>
                   <tr>
-                    <td><strong>THRUPUT</strong> (CDU Range)</td>
-                    <td>90 - 120 kbbl/d</td>
-                    <td id="sp-thru-cur">110.26 kbbl/d</td>
-                    <td><span class="pill-slack">9.74 kbbl/d Headroom</span></td>
-                    <td class="text-mono highlight-cyan" id="sp-thru-val">$0.00 /bbl</td>
-                    <td>CDU throughput has surplus capacity; not bottlenecked</td>
+                    <td><strong>Diesel BS-VI Sulfur</strong></td>
+                    <td>&le; 10 ppm</td>
+                    <td id="sp-sulfur-val">9.8 ppm</td>
+                    <td><span class="pill-slack">0.2 ppm Headroom</span></td>
+                    <td class="text-mono highlight-cyan">$0.00 /ppm</td>
+                    <td>Meets BS-VI environmental specification cleanly</td>
                   </tr>
                   <tr>
-                    <td><strong>AL_LO_BOUND</strong> (Crude A Min)</td>
-                    <td>≥ 10.00 kbbl/d</td>
-                    <td id="sp-al-cur">10.00 kbbl/d</td>
-                    <td><span class="pill-active">At Floor Bound</span></td>
-                    <td class="text-mono highlight-purple" id="sp-al-val">-$1.105 /bbl</td>
-                    <td>Opportunity cost of mandatory minimum Arab Light intake</td>
+                    <td><strong>MS Gasoline RON</strong></td>
+                    <td>&ge; 91.0</td>
+                    <td id="sp-ron-val">91.4 RON</td>
+                    <td><span class="pill-slack">+0.4 RON Headroom</span></td>
+                    <td class="text-mono highlight-cyan">$0.00 /RON</td>
+                    <td>Octane specification satisfied without premium additivation</td>
                   </tr>
                 </tbody>
               </table>
@@ -298,6 +598,33 @@
         </div>
       </div>
     </section>
+
+    <!-- What-If Comparison Modal (Task 10) -->
+    <div id="whatif-modal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3>📊 What-If Scenario Comparison (Baseline vs Selected)</h3>
+          <button class="close-modal-btn" id="close-whatif-btn">&times;</button>
+        </div>
+        <div id="whatif-modal-content">
+          <p style="color: var(--text-muted); margin-bottom: 1rem;">Comparing Baseline operations against selected scenario.</p>
+          <table class="data-table" id="whatif-table">
+            <thead>
+              <tr>
+                <th>Operational Metric</th>
+                <th>Baseline</th>
+                <th id="whatif-scenario-col-title">Selected Scenario</th>
+                <th>Delta Change (&Delta;)</th>
+                <th>Economic / Industrial Impact</th>
+              </tr>
+            </thead>
+            <tbody id="whatif-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
     <!-- ================= TAB 2: SOLVER STUDIO ================= -->
     <section id="tab-solver" class="tab-content">
@@ -829,7 +1156,7 @@ Markowitz stability ratio: 0.010 (pivot floor: 1e-11)
             <h4>Industrial Robustness & Certificates</h4>
             <p>When a model has no feasible solution, SANKHYA does not simply return an error string. It generates a mathematically checkable proof:</p>
             <ul class="clean-list">
-              <li><strong>Infeasible Models:</strong> Generates a Farkas Certificate vector $y$ proving $A^T y \ge 0, b^T y < 0$.</li>
+              <li><strong>Infeasible Models:</strong> Generates a Farkas Certificate vector $y$ proving $A^T y \ge 0, b^T y &lt; 0$.</li>
               <li><strong>Unbounded Models:</strong> Generates an Unbounded Ray $d$ proving $Ad = 0, c^T d > 0$.</li>
               <li><strong>Non-Convex QP:</strong> Emits an LDLᵀ negative pivot witness refusing spurious local optima.</li>
             </ul>
