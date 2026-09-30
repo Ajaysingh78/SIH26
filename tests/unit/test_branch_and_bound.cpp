@@ -735,4 +735,73 @@ TEST(RootCuts, NoCutsWhenDisabled) {
   Solution sol = solve(model, opts);
   EXPECT_EQ(sol.status, SolveStatus::kOptimal);
 }
+
+// =========================================================================================
+// P0 MILP RELIABILITY TESTS
+// =========================================================================================
+
+TEST(BranchAndBoundReliability, ZeroIntegerVariablesModel) {
+  // Model with only continuous variables dispatched to B&B should close immediately at root.
+  // min -2x - 3y  s.t.  x + y <= 4,  x, y >= 0 continuous
+  const Model model = make_milp({{1.0, 1.0}}, {-kInfinity}, {4.0}, {-2.0, -3.0}, {10.0, 10.0},
+                                {false, false});
+  const Solution s = solve(model, mip_options());
+  EXPECT_EQ(s.status, SolveStatus::kOptimal);
+  EXPECT_NEAR(s.objective, -12.0, 1e-9);
+  EXPECT_NEAR(s.col_value[1], 4.0, 1e-6);
+  EXPECT_LE(s.nodes, 1);
+}
+
+TEST(BranchAndBoundReliability, TightIntegralityToleranceEnforced) {
+  // min -x  s.t.  x <= 3.0000005,  x integer.
+  // At default tol (1e-6), 3.0000005 is within 5e-7 of 3 and would be accepted as 3.
+  // But with tight tol (1e-8), 5e-7 > 1e-8, so it must not be accepted without branching.
+  const Model model = make_milp({{1.0}}, {-kInfinity}, {3.0000005}, {-1.0}, {10.0}, {true});
+  Options opt = mip_options();
+  opt.set_double("integrality_tolerance", 1e-8);
+  const Solution s = solve(model, opt);
+  EXPECT_EQ(s.status, SolveStatus::kOptimal);
+  EXPECT_NEAR(s.objective, -3.0, 1e-9);
+  EXPECT_NEAR(s.col_value[0], 3.0, 1e-8);
+  EXPECT_LE(s.integrality_violation, 1e-8);
+}
+
+TEST(BranchAndBoundReliability, DirectionalDivingPicksCloserBranch) {
+  // min -5x - 4y  s.t.  2x + y <= 4.2,  x, y integer in [0, 2]
+  // Continuous relaxation: x = 2, y = 0.2 (fractionality 0.2 down, 0.8 up).
+  // Directional dive should explore y <= 0 first.
+  const Model model = make_milp({{2.0, 1.0}}, {-kInfinity}, {4.2}, {-5.0, -4.0}, {2.0, 2.0},
+                                {true, true});
+  const Solution s = solve(model, mip_options());
+  EXPECT_EQ(s.status, SolveStatus::kOptimal);
+  EXPECT_NEAR(s.objective, -10.0, 1e-9);
+  EXPECT_NEAR(s.col_value[0], 2.0, 1e-6);
+  EXPECT_NEAR(s.col_value[1], 0.0, 1e-6);
+}
+
+TEST(BranchAndBoundReliability, NegativeObjectiveModelHandledCorrectly) {
+  // Tests uninitialized lower bound with large negative objectives.
+  // min -1000x - 2000y  s.t.  x + 2y <= 5.5,  x, y integer in [0, 5]
+  // Optimum: x = 1, y = 2 -> obj = -5000.
+  const Model model = make_milp({{1.0, 2.0}}, {-kInfinity}, {5.5}, {-1000.0, -2000.0},
+                                {5.0, 5.0}, {true, true});
+  const Solution s = solve(model, mip_options());
+  EXPECT_EQ(s.status, SolveStatus::kOptimal);
+  EXPECT_NEAR(s.objective, -5000.0, 1e-6);
+  EXPECT_NEAR(s.dual_bound, -5000.0, 1e-6);
+}
+
+TEST(BranchAndBoundReliability, FathomingAllOpenNodesTerminatesCleanly) {
+  // 3-variable binary knapsack where root dive finds optimal solution early.
+  // All remaining open nodes are fathomable by bound.
+  const Model model = make_milp({{3.0, 2.0, 1.0}}, {-kInfinity}, {3.0},
+                                {-10.0, -6.0, -2.0}, {1.0, 1.0, 1.0},
+                                {true, true, true});
+  const Solution s = solve(model, mip_options());
+  EXPECT_EQ(s.status, SolveStatus::kOptimal);
+  EXPECT_NEAR(s.objective, -10.0, 1e-9);
+  EXPECT_NEAR(s.col_value[0], 1.0, 1e-6);
+}
+
 }  // namespace sankhya
+

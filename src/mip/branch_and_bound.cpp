@@ -59,7 +59,7 @@ struct TreeNode {
   Index parent = -1;
   DomainChange change;
   bool has_change = false;
-  double bound = 0.0;  ///< the LP bound inherited from the parent, in minimise space
+  double bound = -std::numeric_limits<double>::infinity();  ///< the LP bound inherited from the parent, in minimise space
   Index depth = 0;
   /// The parent's optimal basis, as statuses (#65). One bound differs between parent and
   /// child, so this basis is dual feasible at the child and the dual simplex reaches the
@@ -867,6 +867,13 @@ Solution BranchAndBound::run() {
       for (const Index open_index : open_) {
         open_bound = std::min(open_bound, nodes_[static_cast<std::size_t>(open_index)].bound);
       }
+      // If the best open lower bound is already within the prune margin of the incumbent,
+      // every open node is fathomable. Fathom them all to exhaust the tree cleanly.
+      if (can_prune(open_bound)) {
+        nodes_pruned_ += static_cast<Count>(open_.size());
+        open_.clear();
+        break;
+      }
       const double gap = incumbent_internal_ - open_bound;
       // gap <= 0 means open_bound already >= the incumbent: every node still in the tree
       // is one can_prune() would fathom the moment it is popped, so nothing open can beat
@@ -912,7 +919,10 @@ Solution BranchAndBound::run() {
       }
     }
     const Index node_index = open_[pick];
-    open_.erase(open_.begin() + static_cast<std::ptrdiff_t>(pick));
+    if (pick + 1 < open_.size()) {
+      open_[pick] = open_.back();
+    }
+    open_.pop_back();
     dive = false;
 
     const TreeNode& node = nodes_[static_cast<std::size_t>(node_index)];
@@ -1122,8 +1132,24 @@ Solution BranchAndBound::run() {
     const auto down_index = static_cast<Index>(nodes_.size() - 1);
     nodes_.push_back(up);
     const auto up_index = static_cast<Index>(nodes_.size() - 1);
-    open_.push_back(down_index);
-    open_.push_back(up_index);
+    // Directional diving: push the more promising child last so that open_.back()
+    // explores it first during depth-first dive.
+    const auto u_branch = static_cast<std::size_t>(branch_column);
+    const double pc_down = pseudo_down_count_[u_branch] > 0
+                               ? pseudo_down_sum_[u_branch] / static_cast<double>(pseudo_down_count_[u_branch])
+                               : 1.0;
+    const double pc_up = pseudo_up_count_[u_branch] > 0
+                             ? pseudo_up_sum_[u_branch] / static_cast<double>(pseudo_up_count_[u_branch])
+                             : 1.0;
+    const double est_down = pc_down * down.fraction;
+    const double est_up = pc_up * up.fraction;
+    if (est_down <= est_up) {
+      open_.push_back(up_index);
+      open_.push_back(down_index);
+    } else {
+      open_.push_back(down_index);
+      open_.push_back(up_index);
+    }
     dive = true;
 
     // ---- The node table -------------------------------------------------------------------
