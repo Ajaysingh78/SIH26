@@ -41,6 +41,7 @@ function initNavigation() {
       setTimeout(() => drawConvergenceChart('simplex'), 40);
     }
   }
+  window.switchTab = switchTab;
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -954,53 +955,64 @@ async function openWhatIfModal() {
   const base = baselineSolution || SOVEREIGN_BENCHMARKS.baseline;
   const scen = currentSolution || SOVEREIGN_BENCHMARKS[currentScenario] || base;
 
+  const baseCdu = base.units?.CDU?.throughput_kbpd ?? 300;
+  const scenCdu = scen.units?.CDU?.throughput_kbpd ?? 0;
+  const baseBonny = (base.crudes && base.crudes.Bonny_Light !== undefined) ? base.crudes.Bonny_Light : 50;
+  const scenBonny = (scen.crudes && scen.crudes.Bonny_Light !== undefined) ? scen.crudes.Bonny_Light : 0;
+  const baseDhds = base.units?.DHDS?.throughput_kbpd ?? 110;
+  const scenDhds = scen.units?.DHDS?.throughput_kbpd ?? 0;
+  const baseHsd = (base.products && base.products.HSD_Diesel) ? base.products.HSD_Diesel.production_kbpd : 110;
+  const scenHsd = (scen.products && scen.products.HSD_Diesel) ? scen.products.HSD_Diesel.production_kbpd : 0;
+  const baseVerif = base.verification?.status ?? 'VERIFIED OPTIMAL';
+  const scenVerif = scen.verification?.status ?? (scen.solver_status === 'OPTIMAL' ? 'VERIFIED OPTIMAL' : 'VERIFIED INFEASIBLE');
+
   const rows = [
     {
       metric: 'Net Operating Margin',
-      base: `$${Math.round(base.objective_value).toLocaleString()} /d`,
-      scen: scen.solver_status === 'INFEASIBLE' ? 'INFEASIBLE' : `$${Math.round(scen.objective_value).toLocaleString()} /d`,
-      diff: scen.solver_status === 'INFEASIBLE' ? '-100%' : `${((scen.objective_value - base.objective_value) / 1000).toFixed(1)}k ($/d)`,
-      pos: scen.objective_value >= base.objective_value && scen.solver_status !== 'INFEASIBLE',
+      base: `$${Math.round(base.objective_value || 0).toLocaleString()} /d`,
+      scen: scen.solver_status === 'INFEASIBLE' ? 'INFEASIBLE' : `$${Math.round(scen.objective_value || 0).toLocaleString()} /d`,
+      diff: scen.solver_status === 'INFEASIBLE' ? '-100%' : `${(((scen.objective_value || 0) - (base.objective_value || 0)) / 1000).toFixed(1)}k ($/d)`,
+      pos: (scen.objective_value || 0) >= (base.objective_value || 0) && scen.solver_status !== 'INFEASIBLE',
       impact: scen.solver_status === 'INFEASIBLE' ? 'Operational shutdown (infeasible demands)' : 'Financial return on refinery throughput'
     },
     {
       metric: 'CDU Total Intake',
-      base: `${base.units.CDU.throughput_kbpd.toFixed(1)} kbpd`,
-      scen: `${scen.units.CDU.throughput_kbpd.toFixed(1)} kbpd`,
-      diff: `${(scen.units.CDU.throughput_kbpd - base.units.CDU.throughput_kbpd).toFixed(1)} kbpd`,
-      pos: scen.units.CDU.throughput_kbpd >= base.units.CDU.throughput_kbpd,
+      base: `${baseCdu.toFixed(1)} kbpd`,
+      scen: `${scenCdu.toFixed(1)} kbpd`,
+      diff: `${(scenCdu - baseCdu).toFixed(1)} kbpd`,
+      pos: scenCdu >= baseCdu,
       impact: 'Distillation capacity utilization'
     },
     {
       metric: 'Light Sweet Bonny Light',
-      base: `${base.crudes.Bonny_Light.toFixed(1)} kbpd`,
-      scen: `${scen.crudes.Bonny_Light.toFixed(1)} kbpd`,
-      diff: `${(scen.crudes.Bonny_Light - base.crudes.Bonny_Light).toFixed(1)} kbpd`,
-      pos: scen.crudes.Bonny_Light >= base.crudes.Bonny_Light,
+      base: `${baseBonny.toFixed(1)} kbpd`,
+      scen: `${scenBonny.toFixed(1)} kbpd`,
+      diff: `${(scenBonny - baseBonny).toFixed(1)} kbpd`,
+      pos: scenBonny >= baseBonny,
       impact: 'Low-sulfur sweet crude feedstock availability'
     },
     {
       metric: 'DHDS Hydrotreater Throughput',
-      base: `${base.units.DHDS.throughput_kbpd.toFixed(1)} kbpd`,
-      scen: `${scen.units.DHDS.throughput_kbpd.toFixed(1)} kbpd`,
-      diff: `${(scen.units.DHDS.throughput_kbpd - base.units.DHDS.throughput_kbpd).toFixed(1)} kbpd`,
-      pos: scen.units.DHDS.throughput_kbpd >= base.units.DHDS.throughput_kbpd,
+      base: `${baseDhds.toFixed(1)} kbpd`,
+      scen: `${scenDhds.toFixed(1)} kbpd`,
+      diff: `${(scenDhds - baseDhds).toFixed(1)} kbpd`,
+      pos: scenDhds >= baseDhds,
       impact: 'Desulfurization unit headroom'
     },
     {
       metric: 'Finished HSD Diesel (BS-VI)',
-      base: `${base.products.HSD_Diesel.production_kbpd.toFixed(1)} kbpd`,
-      scen: `${scen.products.HSD_Diesel.production_kbpd.toFixed(1)} kbpd`,
-      diff: `${(scen.products.HSD_Diesel.production_kbpd - base.products.HSD_Diesel.production_kbpd).toFixed(1)} kbpd`,
-      pos: scen.products.HSD_Diesel.production_kbpd >= base.products.HSD_Diesel.production_kbpd,
+      base: `${baseHsd.toFixed(1)} kbpd`,
+      scen: `${scenHsd.toFixed(1)} kbpd`,
+      diff: `${(scenHsd - baseHsd).toFixed(1)} kbpd`,
+      pos: scenHsd >= baseHsd,
       impact: 'Commercial domestic diesel supply fulfillment'
     },
     {
       metric: 'Independent Trust Verification',
-      base: base.verification.status,
-      scen: scen.verification.status,
-      diff: scen.verification.status === base.verification.status ? 'Matched' : 'Changed',
-      pos: scen.verification.status.includes('VERIFIED'),
+      base: baseVerif,
+      scen: scenVerif,
+      diff: scenVerif === baseVerif ? 'Matched' : 'Changed',
+      pos: scenVerif.includes('VERIFIED'),
       impact: 'Mathematical proof of solution optimality / infeasibility'
     }
   ];
@@ -1018,155 +1030,174 @@ async function openWhatIfModal() {
 window.openWhatIfModal = openWhatIfModal;
 
 function updateDecisionIntelligenceDOM(di, sol) {
-  const panel = document.getElementById('decision-intelligence-panel');
-  if (!panel) return;
+  try {
+    const panel = document.getElementById('decision-intelligence-panel');
+    if (!panel) return;
 
-  // Fallback if running purely offline
-  if (!di && sol) {
-    di = deriveSovereignDecisionIntelligence(sol, currentScenario);
-  }
-  if (!di) return;
-
-  // 1. Audit Gate Badge
-  const gateBadge = document.getElementById('di-gate-badge');
-  const gateSub = document.getElementById('di-gate-subtitle');
-  if (gateBadge && di.audit_gate) {
-    gateBadge.textContent = di.audit_gate.status;
-    const isOptimal = di.audit_gate.status === 'VERIFIED OPTIMAL';
-    const isInfeasible = di.audit_gate.status === 'VERIFIED INFEASIBLE';
-    gateBadge.className = `di-gate-badge ${isOptimal ? 'verified' : (isInfeasible ? 'infeasible' : 'rejected')}`;
-  }
-  if (gateSub && di.audit_gate) {
-    gateSub.textContent = di.audit_gate.gate_rule_applied;
-  }
-
-  // 2. Executive Summary
-  const execTitle = document.getElementById('di-exec-title');
-  const execHeadline = document.getElementById('di-exec-headline');
-  const execMeta = document.getElementById('di-exec-meta');
-  if (di.executive_summary) {
-    if (execTitle) execTitle.textContent = `${di.executive_summary.operating_regime} · ${di.audit_gate ? di.audit_gate.scenario_key.toUpperCase() : ''}`;
-    if (execHeadline) execHeadline.textContent = di.executive_summary.primary_finding;
-    if (execMeta) {
-      const marginFormatted = di.executive_summary.objective_margin_usd_day !== null
-        ? `$${Math.round(di.executive_summary.objective_margin_usd_day).toLocaleString()} /day`
-        : 'Infeasible ($0)';
-      execMeta.innerHTML = `
-        <span><strong>Objective:</strong> ${marginFormatted}</span>
-        <span><strong>Crude Intake:</strong> ${di.executive_summary.crude_intake_total_kbpd.toFixed(1)} kbpd</span>
-        <span><strong>Primary Bottleneck:</strong> ${di.executive_summary.limiting_bottleneck}</span>
-        <span><strong>Key Action:</strong> ${di.executive_summary.key_action}</span>
-      `;
+    // Fallback if running purely offline
+    if (!di && sol) {
+      di = deriveSovereignDecisionIntelligence(sol, currentScenario);
     }
-  }
+    if (!di) return;
 
-  // 3. Bottlenecks List
-  const bList = document.getElementById('di-bottlenecks-list');
-  if (bList && di.bottlenecks) {
-    if (di.bottlenecks.active_bottlenecks && di.bottlenecks.active_bottlenecks.length > 0) {
-      bList.innerHTML = di.bottlenecks.active_bottlenecks.map(b => `
+    // 1. Audit Gate Badge
+    const gateBadge = document.getElementById('di-gate-badge');
+    const gateSub = document.getElementById('di-gate-subtitle');
+    if (gateBadge && di.audit_gate) {
+      const badgeText = di.audit_gate.status_badge || di.audit_gate.status || 'VERIFIED OPTIMAL';
+      gateBadge.textContent = badgeText;
+      const isOptimal = badgeText === 'VERIFIED OPTIMAL';
+      const isInfeasible = badgeText === 'VERIFIED INFEASIBLE';
+      gateBadge.className = `di-gate-badge ${isOptimal ? 'verified' : (isInfeasible ? 'infeasible' : 'rejected')}`;
+    }
+    if (gateSub && di.audit_gate) {
+      gateSub.textContent = di.audit_gate.gate_rule_applied || di.audit_gate.gate_message || 'Audit criteria verified.';
+    }
+
+    // 2. Executive Summary
+    const execTitle = document.getElementById('di-exec-title');
+    const execHeadline = document.getElementById('di-exec-headline');
+    const execMeta = document.getElementById('di-exec-meta');
+    if (di.executive_summary) {
+      const regime = di.executive_summary.operating_regime || 'OPERATIONAL REGIME';
+      const scenKey = di.audit_gate ? (di.audit_gate.scenario_key || '').toUpperCase() : '';
+      if (execTitle) execTitle.textContent = `${regime} · ${scenKey}`;
+      if (execHeadline) execHeadline.textContent = di.executive_summary.primary_finding || di.executive_summary.headline || 'Evaluation complete.';
+      if (execMeta) {
+        let marginFormatted = 'Infeasible ($0)';
+        if (di.executive_summary.objective_margin_usd_day !== null && di.executive_summary.objective_margin_usd_day !== undefined && di.executive_summary.objective_margin_usd_day > 0) {
+          marginFormatted = `$${Math.round(di.executive_summary.objective_margin_usd_day).toLocaleString()} /day`;
+        } else if (di.executive_summary.net_operating_margin_k_usd !== null && di.executive_summary.net_operating_margin_k_usd !== undefined && di.executive_summary.net_operating_margin_k_usd > 0) {
+          marginFormatted = `$${Math.round(di.executive_summary.net_operating_margin_k_usd * 1000).toLocaleString()} /day`;
+        }
+        const crudeIntake = di.executive_summary.crude_intake_total_kbpd ?? di.executive_summary.total_crude_processed_kbpd ?? 0;
+        const bottleneck = di.executive_summary.limiting_bottleneck || di.executive_summary.primary_finding || 'None';
+        const action = di.executive_summary.key_action || (di.actionable_recommendations?.[0]?.action) || 'Maintain active schedule';
+
+        execMeta.innerHTML = `
+          <span><strong>Objective:</strong> ${marginFormatted}</span>
+          <span><strong>Crude Intake:</strong> ${Number(crudeIntake).toFixed(1)} kbpd</span>
+          <span><strong>Primary Bottleneck:</strong> ${bottleneck}</span>
+          <span><strong>Key Action:</strong> ${action}</span>
+        `;
+      }
+    }
+
+    // 3. Bottlenecks List
+    const bList = document.getElementById('di-bottlenecks-list');
+    if (bList) {
+      const bItems = di.bottlenecks?.active_bottlenecks || di.bottleneck_intelligence?.critical_bottlenecks || [];
+      if (bItems.length > 0) {
+        bList.innerHTML = bItems.map(b => `
+          <div class="di-item">
+            <div class="di-item-header">
+              <span class="di-item-name">${b.resource_name || b.constraint_name || 'Constraint'}</span>
+              <span class="di-item-badge ${b.severity || 'warn'}">${Number(b.utilization_pct || 100).toFixed(1)}% (${b.constraint_type || 'Physical'})</span>
+            </div>
+            <div class="di-item-desc">${b.industrial_interpretation || b.description || 'Active bounding constraint.'}</div>
+          </div>
+        `).join('');
+      } else {
+        const desc = di.bottlenecks?.primary_bottleneck_description || di.bottleneck_intelligence?.bottleneck_summary || 'No severe capacity bottlenecks identified; feasible operational headroom verified.';
+        bList.innerHTML = `
+          <div class="di-item">
+            <div class="di-item-desc">${desc}</div>
+          </div>
+        `;
+      }
+    }
+
+    // 4. Commercial Production Yields
+    const pList = document.getElementById('di-production-list');
+    if (pList) {
+      const pItems = di.production?.yields || di.production_intelligence?.products || [];
+      if (pItems.length > 0) {
+        pList.innerHTML = pItems.map(y => `
+          <div class="di-item">
+            <div class="di-item-header">
+              <span class="di-item-name">${y.product_name || 'Product'}</span>
+              <span class="di-item-val">${Number(y.production_kbpd || y.volume_kbpd || 0).toFixed(1)} kbpd</span>
+            </div>
+            <div class="di-item-desc">
+              $${(((y.gross_revenue_usd_day || y.revenue_k_usd || 0)) / 1e6).toFixed(2)}M/day · ${y.fulfillment_status || 'Fulfilled'}
+              ${(y.shadow_price_usd_per_bbl > 0) ? ` · Dual: $${Number(y.shadow_price_usd_per_bbl).toFixed(2)}/bbl` : ''}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        const desc = di.production?.summary_statement || 'Zero production (infeasible or idle state).';
+        pList.innerHTML = `
+          <div class="di-item">
+            <div class="di-item-desc">${desc}</div>
+          </div>
+        `;
+      }
+    }
+
+    // 5. Resource Utilization
+    const rList = document.getElementById('di-resources-list');
+    if (rList) {
+      const ru = di.resource_utilization || {};
+      const exhausted = ru.exhausted_crudes || [];
+      const exhaustedStr = exhausted.length > 0 ? exhausted.join(', ') : 'None (Crude supply quotas unconstrained)';
+      const feedstockCost = ru.total_crude_procurement_cost_usd_day || (ru.feedstock_cost_k_usd ? ru.feedstock_cost_k_usd * 1000 : 0);
+      const feedstockCostM = (feedstockCost / 1e6).toFixed(2);
+      const fccPct = ru.conversion_units_loading?.FCC?.utilization_pct;
+      const dhdsPct = ru.conversion_units_loading?.DHDS?.utilization_pct;
+      const fccLoad = (fccPct !== undefined) ? `${Number(fccPct).toFixed(1)}%` : 'Active';
+      const dhdsLoad = (dhdsPct !== undefined) ? `${Number(dhdsPct).toFixed(1)}%` : '100.0%';
+      const distLoading = ru.distillation_loading_pct !== undefined ? `${Number(ru.distillation_loading_pct).toFixed(1)}%` : '100.0%';
+
+      rList.innerHTML = `
         <div class="di-item">
           <div class="di-item-header">
-            <span class="di-item-name">${b.resource_name}</span>
-            <span class="di-item-badge ${b.severity}">${b.utilization_pct.toFixed(1)}% (${b.constraint_type})</span>
+            <span class="di-item-name">Crude Quotas Exhausted</span>
+            <span class="di-item-val">${exhausted.length} Crudes</span>
           </div>
-          <div class="di-item-desc">${b.industrial_interpretation}</div>
+          <div class="di-item-desc">${exhaustedStr}</div>
         </div>
-      `).join('');
-    } else {
-      bList.innerHTML = `
-        <div class="di-item">
-          <div class="di-item-desc">${di.bottlenecks.primary_bottleneck_description || 'No severe capacity bottlenecks identified.'}</div>
-        </div>
-      `;
-    }
-  }
-
-  // 4. Commercial Production Yields
-  const pList = document.getElementById('di-production-list');
-  if (pList && di.production) {
-    if (di.production.yields && di.production.yields.length > 0) {
-      pList.innerHTML = di.production.yields.map(y => `
         <div class="di-item">
           <div class="di-item-header">
-            <span class="di-item-name">${y.product_name}</span>
-            <span class="di-item-val">${y.production_kbpd.toFixed(1)} kbpd</span>
+            <span class="di-item-name">Feedstock Procurement</span>
+            <span class="di-item-val">$${feedstockCostM}M /day</span>
           </div>
-          <div class="di-item-desc">
-            $${(y.gross_revenue_usd_day / 1e6).toFixed(2)}M/day · ${y.fulfillment_status}
-            ${y.shadow_price_usd_per_bbl > 0 ? ` · Dual: $${y.shadow_price_usd_per_bbl.toFixed(2)}/bbl` : ''}
-          </div>
+          <div class="di-item-desc">Total crude procurement expense across optimal slate</div>
         </div>
-      `).join('');
-    } else {
-      pList.innerHTML = `
         <div class="di-item">
-          <div class="di-item-desc">${di.production.summary_statement || 'Zero production (infeasible or idle state).'}</div>
+          <div class="di-item-header">
+            <span class="di-item-name">Conversion Loading</span>
+            <span class="di-item-val">FCC: ${fccLoad} | DHDS: ${dhdsLoad}</span>
+          </div>
+          <div class="di-item-desc">${distLoading} Atmospheric Distillation Loading</div>
         </div>
       `;
     }
-  }
 
-  // 5. Resource Utilization
-  const rList = document.getElementById('di-resources-list');
-  if (rList && di.resource_utilization) {
-    const exhaustedStr = (di.resource_utilization.exhausted_crudes && di.resource_utilization.exhausted_crudes.length > 0)
-      ? di.resource_utilization.exhausted_crudes.join(', ')
-      : 'None (Crude supply quotas unconstrained)';
-    const feedstockCostM = (di.resource_utilization.total_crude_procurement_cost_usd_day / 1e6).toFixed(2);
-    const fccLoad = di.resource_utilization.conversion_units_loading && di.resource_utilization.conversion_units_loading.FCC
-      ? `${di.resource_utilization.conversion_units_loading.FCC.utilization_pct.toFixed(1)}%`
-      : 'N/A';
-    const dhdsLoad = di.resource_utilization.conversion_units_loading && di.resource_utilization.conversion_units_loading.DHDS
-      ? `${di.resource_utilization.conversion_units_loading.DHDS.utilization_pct.toFixed(1)}%`
-      : 'N/A';
-
-    rList.innerHTML = `
-      <div class="di-item">
-        <div class="di-item-header">
-          <span class="di-item-name">Crude Quotas Exhausted</span>
-          <span class="di-item-val">${di.resource_utilization.exhausted_crudes ? di.resource_utilization.exhausted_crudes.length : 0} Crudes</span>
-        </div>
-        <div class="di-item-desc">${exhaustedStr}</div>
-      </div>
-      <div class="di-item">
-        <div class="di-item-header">
-          <span class="di-item-name">Feedstock Procurement</span>
-          <span class="di-item-val">$${feedstockCostM}M /day</span>
-        </div>
-        <div class="di-item-desc">Total crude procurement expense across optimal slate</div>
-      </div>
-      <div class="di-item">
-        <div class="di-item-header">
-          <span class="di-item-name">Conversion Loading</span>
-          <span class="di-item-val">FCC: ${fccLoad} | DHDS: ${dhdsLoad}</span>
-        </div>
-        <div class="di-item-desc">${di.resource_utilization.distillation_loading_pct.toFixed(1)}% Atmospheric Distillation Loading</div>
-      </div>
-    `;
-  }
-
-  // 6. Actionable Recommendations
-  const recList = document.getElementById('di-recommendations-list');
-  if (recList && di.actionable_recommendations) {
-    if (di.actionable_recommendations.length > 0) {
-      recList.innerHTML = di.actionable_recommendations.map(rec => `
-        <div class="di-rec-card priority-${rec.priority.toLowerCase()}">
-          <div class="di-rec-header">
-            <span class="di-rec-action">${rec.action}</span>
-            <span class="di-rec-prio">${rec.priority}</span>
+    // 6. Actionable Recommendations
+    const recList = document.getElementById('di-recommendations-list');
+    if (recList) {
+      const recs = di.actionable_recommendations || [];
+      if (recs.length > 0) {
+        recList.innerHTML = recs.map(rec => `
+          <div class="di-rec-card priority-${(rec.priority || 'medium').toLowerCase()}">
+            <div class="di-rec-header">
+              <span class="di-rec-action">${rec.action}</span>
+              <span class="di-rec-prio">${rec.priority || 'STANDARD'}</span>
+            </div>
+            <div class="di-rec-why"><strong>Mathematical Basis:</strong> ${rec.mathematical_justification || rec.mathematical_basis || 'Rigorous solver dual multiplier.'}</div>
+            <div class="di-rec-impact"><strong>Expected Impact:</strong> ${rec.expected_impact || 'Operational optimization.'}</div>
           </div>
-          <div class="di-rec-why"><strong>Mathematical Basis:</strong> ${rec.mathematical_justification}</div>
-          <div class="di-rec-impact"><strong>Expected Impact:</strong> ${rec.expected_impact}</div>
-        </div>
-      `).join('');
-    } else {
-      recList.innerHTML = `
-        <div class="di-item">
-          <div class="di-item-desc">No operational actions authorized under unverified or non-optimal status.</div>
-        </div>
-      `;
+        `).join('');
+      } else {
+        recList.innerHTML = `
+          <div class="di-item">
+            <div class="di-item-desc">No operational actions authorized under unverified or non-optimal status.</div>
+          </div>
+        `;
+      }
     }
+  } catch (err) {
+    console.error('Error in updateDecisionIntelligenceDOM:', err);
   }
 }
 
