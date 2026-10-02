@@ -795,7 +795,7 @@ class IndustrialDecisionEngine:
             opex = kpis.get("operating_cost_k_usd", 0.0)
 
             headline = (
-                f"SANKHYA Verified Optimal: Refinery captures ${net_margin:,.2f}k/day Net Operating Margin "
+                f"SANJAY Verified Optimal: Refinery captures ${net_margin:,.2f}k/day Net Operating Margin "
                 f"(${grm:.2f}/bbl GRM) across {tot_crude:.1f} kbpd crude charge."
             )
             narrative = (
@@ -811,7 +811,7 @@ class IndustrialDecisionEngine:
             gross_rev = 0.0
             crude_cost = 0.0
             opex = 0.0
-            headline = f"SANKHYA Infeasibility Diagnosis: {audit.status_badge}. Operational recommendations blocked."
+            headline = f"SANJAY Infeasibility Diagnosis: {audit.status_badge}. Operational recommendations blocked."
             narrative = audit.gate_message
 
         exec_summary = ExecutiveDecisionSummary(

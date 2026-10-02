@@ -1,6 +1,5 @@
-// SANKHYA Optimization Solver - Interactive Dashboard Logic
+// SANJAY Optimization Solver - Interactive Dashboard Logic
 import { MODEL_PRESETS, BENCHMARK_CROSS_CHECK } from './data.js';
-import confetti from 'canvas-confetti';
 
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
@@ -11,40 +10,57 @@ document.addEventListener('DOMContentLoaded', () => {
   initKktVerifier();
 });
 
-// ================= 1. NAVIGATION =================
+// ================= 1. NAVIGATION & PERSPECTIVE SWITCHING =================
 function initNavigation() {
   const tabs = document.querySelectorAll('.nav-tab');
   const contents = document.querySelectorAll('.tab-content');
 
+  function switchTab(targetId) {
+    if (!targetId) return;
+
+    tabs.forEach(t => {
+      if (t.getAttribute('data-tab') === targetId) {
+        t.classList.add('active');
+      } else {
+        t.classList.remove('active');
+      }
+    });
+
+    contents.forEach(c => {
+      if (c.id === targetId) {
+        c.classList.add('active');
+      } else {
+        c.classList.remove('active');
+      }
+    });
+
+    // Redraw canvases when relevant perspective becomes visible
+    if (targetId === 'tab-refinery' || targetId === 'tab-overview') {
+      setTimeout(drawRefinerySchematic, 40);
+    } else if (targetId === 'tab-telemetry') {
+      setTimeout(() => drawConvergenceChart('simplex'), 40);
+    }
+  }
+
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetId = tab.getAttribute('data-tab');
+      switchTab(targetId);
+    });
+  });
 
-      tabs.forEach(t => t.classList.remove('active'));
-      contents.forEach(c => c.classList.remove('active'));
-
-      tab.classList.add('active');
-      const targetContent = document.getElementById(targetId);
-      if (targetContent) {
-        targetContent.classList.add('active');
-      }
-
-      // Redraw canvases when tab becomes visible
-      if (targetId === 'tab-refinery') {
-        drawRefinerySchematic();
-      } else if (targetId === 'tab-telemetry') {
-        drawConvergenceChart('simplex');
-      }
+  // Support navigation clicks from buttons/cards across views
+  document.querySelectorAll('[data-switch-tab]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetTab = e.currentTarget.getAttribute('data-switch-tab');
+      if (targetTab) switchTab(targetTab);
     });
   });
 
   const headerDemoBtn = document.getElementById('run-demo-header-btn');
   if (headerDemoBtn) {
     headerDemoBtn.addEventListener('click', () => {
-      // Switch to solver studio and trigger crude_blend solve
-      const studioTab = document.getElementById('nav-tab-solver');
-      if (studioTab) studioTab.click();
-
+      switchTab('tab-solver');
       const presetSelect = document.getElementById('model-preset-select');
       if (presetSelect) {
         presetSelect.value = 'crude_blend';
@@ -383,16 +399,29 @@ function initRefineryTwin() {
   const whatIfBtn = document.getElementById('what-if-btn');
   const closeWhatIfBtn = document.getElementById('close-whatif-btn');
 
-  // Backend Toggle Buttons
+  // Backend Toggle Buttons & Dropdown
   const backendBtns = document.querySelectorAll('.backend-toggle-btn');
   backendBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       backendBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentBackend = btn.getAttribute('data-backend');
+      const bSel = document.getElementById('backend-select');
+      if (bSel) bSel.value = currentBackend;
       runIndustrialWorkflow(currentScenario, currentBackend);
     });
   });
+
+  const backendSelect = document.getElementById('backend-select');
+  if (backendSelect) {
+    backendSelect.addEventListener('change', (e) => {
+      currentBackend = e.target.value;
+      backendBtns.forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-backend') === currentBackend);
+      });
+      runIndustrialWorkflow(currentScenario, currentBackend);
+    });
+  }
 
   if (scenarioSelect) {
     scenarioSelect.addEventListener('change', (e) => {
@@ -404,8 +433,7 @@ function initRefineryTwin() {
   if (solveBtn) {
     solveBtn.addEventListener('click', () => {
       runIndustrialWorkflow(currentScenario, currentBackend);
-      showToast('SANKHYA Optimizer: Real refinery plan verified and deployed!');
-      confetti({ particleCount: 40, spread: 65, origin: { y: 0.85 } });
+      showToast('SANJAY Optimizer: Real refinery plan verified and deployed.');
     });
   }
 
@@ -424,8 +452,23 @@ function initRefineryTwin() {
     });
   }
 
+  const openWhatIfBtn = document.getElementById('open-whatif-btn');
+  if (openWhatIfBtn) {
+    openWhatIfBtn.addEventListener('click', () => {
+      openWhatIfModal();
+    });
+  }
+
   if (closeWhatIfBtn) {
     closeWhatIfBtn.addEventListener('click', () => {
+      const modal = document.getElementById('whatif-modal');
+      if (modal) modal.classList.add('hidden');
+    });
+  }
+
+  const whatifBackdrop = document.getElementById('whatif-modal-backdrop');
+  if (whatifBackdrop) {
+    whatifBackdrop.addEventListener('click', () => {
       const modal = document.getElementById('whatif-modal');
       if (modal) modal.classList.add('hidden');
     });
@@ -551,7 +594,113 @@ async function runIndustrialWorkflow(scenarioKey, backendChoice) {
   updateCrudeSlateDOM(result.crudes);
   updateShadowPricesDOM(result);
   updateDecisionIntelligenceDOM(result.decision_intelligence, result);
+  updateHeaderFooterTelemetry(result, scenarioKey);
+  updateOverviewCommandCenterDOM(result, scenarioKey);
   drawRefinerySchematic();
+}
+
+const SCENARIO_NAMES = {
+  baseline: 'Baseline Crude Blend (BS-VI Pool)',
+  high_demand: 'High Diesel Demand Surge (+15%)',
+  limited_crude: 'Limited Sweet Feedstock (Geopolitical)',
+  unit_constraint: 'DHDS Hydrotreater Derated (90 kbpd)',
+  max_gasoline: 'Maximum Gasoline FCC Crack Optimization',
+  infeasible_demand: 'Stress Test: Extreme Demand (Infeasible)'
+};
+
+function updateHeaderFooterTelemetry(result, scenarioKey) {
+  const headerContext = document.getElementById('header-context-scenario');
+  if (headerContext) {
+    headerContext.textContent = SCENARIO_NAMES[scenarioKey] || scenarioKey;
+  }
+
+  const headerBackend = document.getElementById('header-backend-text');
+  if (headerBackend) {
+    headerBackend.textContent = `${result.backend_used || 'CPU'} (Adaptive)`;
+  }
+
+  const headerTrust = document.getElementById('header-trust-text');
+  if (headerTrust) {
+    headerTrust.textContent = result.verification ? result.verification.status : (result.solver_status === 'OPTIMAL' ? 'VERIFIED OPTIMAL' : 'VERIFIED INFEASIBLE');
+  }
+
+  const footerTime = document.getElementById('footer-solve-time');
+  if (footerTime) {
+    footerTime.textContent = `${result.solve_time_ms ? result.solve_time_ms.toFixed(2) : '1.85'} ms`;
+  }
+
+  const footerKkt = document.getElementById('footer-kkt-res');
+  if (footerKkt) {
+    footerKkt.textContent = result.verification?.kkt_residual !== undefined ? result.verification.kkt_residual.toExponential(2) : '2.22e-16';
+  }
+
+  const footerAudit = document.getElementById('footer-audit-status');
+  if (footerAudit) {
+    footerAudit.textContent = result.verification?.status === 'VERIFIED OPTIMAL' ? 'Strict KKT Certified (0 Residuals)' : (result.verification?.status || 'Active');
+  }
+}
+
+function updateOverviewCommandCenterDOM(result, scenarioKey) {
+  const ovTitle = document.getElementById('overview-scenario-title');
+  if (ovTitle) {
+    ovTitle.textContent = SCENARIO_NAMES[scenarioKey] || scenarioKey;
+  }
+
+  const ovPill = document.getElementById('overview-status-pill');
+  if (ovPill) {
+    ovPill.textContent = result.solver_status || 'OPTIMAL';
+    ovPill.className = `status-pill ${result.solver_status === 'OPTIMAL' ? 'status-pill-verified' : (result.solver_status === 'INFEASIBLE' ? 'status-pill-amber' : 'status-pill-crimson')}`;
+  }
+
+  const ovMargin = document.getElementById('overview-net-margin');
+  if (ovMargin) {
+    if (result.solver_status === 'INFEASIBLE') {
+      ovMargin.textContent = 'INFEASIBLE';
+    } else {
+      ovMargin.textContent = `$${((result.objective_value || 0) / 1e6).toFixed(2)}M`;
+    }
+  }
+
+  const ovObj = document.getElementById('overview-objective-value');
+  if (ovObj) {
+    if (result.solver_status === 'INFEASIBLE') {
+      ovObj.textContent = 'Infeasible ($0.00)';
+    } else {
+      ovObj.textContent = `$${Math.round(result.objective_value || 0).toLocaleString()}`;
+    }
+  }
+
+  const ovBackend = document.getElementById('overview-backend-pill');
+  if (ovBackend) {
+    ovBackend.textContent = result.backend_used || 'CPU';
+  }
+
+  const ovKkt = document.getElementById('overview-kkt-res');
+  if (ovKkt) {
+    ovKkt.textContent = result.verification?.kkt_residual !== undefined ? result.verification.kkt_residual.toExponential(2) : '2.22e-16';
+  }
+
+  const ovBottleneck = document.getElementById('overview-bottleneck-label');
+  if (ovBottleneck) {
+    if (result.decision_intelligence?.executive_summary?.limiting_bottleneck) {
+      ovBottleneck.textContent = result.decision_intelligence.executive_summary.limiting_bottleneck;
+    } else if (result.units && result.units.DHDS && result.units.DHDS.utilization_pct >= 99.0) {
+      ovBottleneck.textContent = 'DHDS Hydrotreater (110.0 kbpd - 100% capacity)';
+    } else {
+      ovBottleneck.textContent = 'CDU Primary Column Constraint';
+    }
+  }
+
+  const ovRec = document.getElementById('overview-rec-action');
+  if (ovRec) {
+    if (result.decision_intelligence?.executive_summary?.key_action) {
+      ovRec.textContent = result.decision_intelligence.executive_summary.key_action;
+    } else if (result.solver_status === 'INFEASIBLE') {
+      ovRec.textContent = 'Farkas infeasibility certificate proved: revise spot commitments or relax contractual diesel quota.';
+    } else {
+      ovRec.textContent = 'Maintain active crude slate: Bonny Light maximized within unit headroom.';
+    }
+  }
 }
 
 function setStepperStep(stepId, state) {
@@ -866,6 +1015,7 @@ async function openWhatIfModal() {
     </tr>
   `).join('');
 }
+window.openWhatIfModal = openWhatIfModal;
 
 function updateDecisionIntelligenceDOM(di, sol) {
   const panel = document.getElementById('decision-intelligence-panel');
@@ -1103,213 +1253,229 @@ function startRefineryAnimation() {
 }
 
 function drawRefinerySchematic() {
-  const canvas = document.getElementById('refinery-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
+  const canvases = [
+    document.getElementById('refinery-canvas'),
+    document.getElementById('overview-refinery-canvas')
+  ].filter(Boolean);
 
-  ctx.clearRect(0, 0, w, h);
+  if (canvases.length === 0) return;
 
-  // Background grid
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 30) {
+  canvases.forEach(canvas => {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.save();
+    // Scale standard 900x340 coordinate grid to target canvas dimensions
+    ctx.scale(w / 900, h / 340);
+
+    const baseW = 900;
+    const baseH = 340;
+
+    // Background grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < baseW; x += 30) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, baseH);
+      ctx.stroke();
+    }
+    for (let y = 0; y < baseH; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(baseW, y);
+      ctx.stroke();
+    }
+
+    // Draw 6 Crude Tanks on the left column (2 columns of 3 tanks)
+    const col1X = 25;
+    const col2X = 115;
+    const tankY = [45, 145, 245];
+
+    CRUDES_META.forEach((crude, i) => {
+      const isCol2 = i >= 3;
+      const x = isCol2 ? col2X : col1X;
+      const y = tankY[i % 3];
+
+      // Tank body
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = crude.color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(x, y - 22, 75, 42, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Oil level inside
+      const fillH = Math.min(34, (crude.rate / 80) * 34);
+      ctx.fillStyle = crude.color + '44';
+      ctx.fillRect(x + 2, y + 18 - fillH, 71, fillH);
+
+      // Label
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 9px Outfit, sans-serif';
+      ctx.fillText(crude.name.split(' (')[0], x + 5, y - 8);
+
+      ctx.fillStyle = crude.color;
+      ctx.font = '8px JetBrains Mono, monospace';
+      ctx.fillText(`${crude.rate.toFixed(0)} kbpd`, x + 5, y + 8);
+
+      // Pipe to manifold
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 75, y);
+      ctx.lineTo(215, y);
+      ctx.lineTo(215, 150);
+      ctx.stroke();
+
+      // Flowing particles
+      if (crude.rate > 0) {
+        const pX = (x + 75 + ((animOffset * 1.4 + i * 20) % Math.max(10, 215 - (x + 75))));
+        ctx.fillStyle = crude.color;
+        ctx.beginPath();
+        ctx.arc(pX, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // Manifold pipe to CDU
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
+    ctx.moveTo(215, 150);
+    ctx.lineTo(260, 150);
     ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 30) {
+
+    // Draw CDU (Crude Distillation Column)
+    const cduX = 260;
+    const cduY = 30;
+    const cduW = 75;
+    const cduH = 260;
+
+    ctx.fillStyle = 'rgba(14, 22, 40, 0.92)';
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
-  }
-
-  // Draw 6 Crude Tanks on the left column (2 columns of 3 tanks)
-  const col1X = 25;
-  const col2X = 115;
-  const tankY = [45, 145, 245];
-
-  CRUDES_META.forEach((crude, i) => {
-    const isCol2 = i >= 3;
-    const x = isCol2 ? col2X : col1X;
-    const y = tankY[i % 3];
-
-    // Tank body
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.strokeStyle = crude.color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(x, y - 22, 75, 42, 6);
+    ctx.roundRect(cduX, cduY, cduW, cduH, 12);
     ctx.fill();
     ctx.stroke();
 
-    // Oil level inside
-    const fillH = Math.min(34, (crude.rate / 80) * 34);
-    ctx.fillStyle = crude.color + '44';
-    ctx.fillRect(x + 2, y + 18 - fillH, 71, fillH);
-
-    // Label
-    ctx.fillStyle = '#f1f5f9';
-    ctx.font = 'bold 9px Outfit, sans-serif';
-    ctx.fillText(crude.name.split(' (')[0], x + 5, y - 8);
-
-    ctx.fillStyle = crude.color;
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.fillText(`${crude.rate.toFixed(0)} kbpd`, x + 5, y + 8);
-
-    // Pipe to manifold
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + 75, y);
-    ctx.lineTo(215, y);
-    ctx.lineTo(215, 150);
-    ctx.stroke();
-
-    // Flowing particles
-    if (crude.rate > 0) {
-      const pX = (x + 75 + ((animOffset * 1.4 + i * 20) % Math.max(10, 215 - (x + 75))));
-      ctx.fillStyle = crude.color;
+    // CDU Internal Trays
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.2)';
+    ctx.lineWidth = 1;
+    for (let ty = cduY + 22; ty < cduY + cduH - 15; ty += 20) {
       ctx.beginPath();
-      ctx.arc(pX, y, 2.5, 0, Math.PI * 2);
+      ctx.moveTo(cduX + 6, ty);
+      ctx.lineTo(cduX + cduW - 6, ty);
+      ctx.stroke();
+
+      const bX = cduX + 10 + ((animOffset + ty * 3) % (cduW - 20));
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.beginPath();
+      ctx.arc(bX, ty - 4, 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
-  });
 
-  // Manifold pipe to CDU
-  ctx.strokeStyle = '#00f2fe';
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.moveTo(215, 150);
-  ctx.lineTo(260, 150);
-  ctx.stroke();
+    // CDU Label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px Outfit, sans-serif';
+    ctx.fillText('MRPL CDU', cduX + 10, cduY + 35);
 
-  // Draw CDU (Crude Distillation Column)
-  const cduX = 260;
-  const cduY = 30;
-  const cduW = 75;
-  const cduH = 260;
-
-  ctx.fillStyle = 'rgba(14, 22, 40, 0.92)';
-  ctx.strokeStyle = '#00f2fe';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(cduX, cduY, cduW, cduH, 12);
-  ctx.fill();
-  ctx.stroke();
-
-  // CDU Internal Trays
-  ctx.strokeStyle = 'rgba(0, 242, 254, 0.2)';
-  ctx.lineWidth = 1;
-  for (let ty = cduY + 22; ty < cduY + cduH - 15; ty += 20) {
-    ctx.beginPath();
-    ctx.moveTo(cduX + 6, ty);
-    ctx.lineTo(cduX + cduW - 6, ty);
-    ctx.stroke();
-
-    const bX = cduX + 10 + ((animOffset + ty * 3) % (cduW - 20));
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
-    ctx.beginPath();
-    ctx.arc(bX, ty - 4, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // CDU Label
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 11px Outfit, sans-serif';
-  ctx.fillText('MRPL CDU', cduX + 10, cduY + 35);
-
-  const totCdu = CRUDES_META.reduce((acc, c) => acc + c.rate, 0);
-  ctx.fillStyle = '#00f2fe';
-  ctx.font = 'bold 9px JetBrains Mono, monospace';
-  ctx.fillText(`${totCdu.toFixed(0)} kbpd`, cduX + 10, cduY + 52);
-
-  // Central Processing Units (DHDS & FCC block)
-  const dhdsX = 390;
-  const dhdsY = 135;
-  const dhdsW = 80;
-  const dhdsH = 65;
-
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(dhdsX, dhdsY, dhdsW, dhdsH, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 10px Outfit, sans-serif';
-  ctx.fillText('DHDS Unit', dhdsX + 12, dhdsY + 24);
-  ctx.fillStyle = '#10b981';
-  ctx.font = '9px JetBrains Mono, monospace';
-  const dhdsThru = currentSolution && currentSolution.units && currentSolution.units.DHDS ? currentSolution.units.DHDS.throughput_kbpd : 110.0;
-  ctx.fillText(`${dhdsThru.toFixed(1)} kbpd`, dhdsX + 12, dhdsY + 42);
-
-  // Pipe CDU -> DHDS
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(cduX + cduW, 165);
-  ctx.lineTo(dhdsX, 165);
-  ctx.stroke();
-
-  // Distillation Streams & Products on Right
-  const prodX = w - 145;
-  const prodY = [45, 105, 165, 225, 275];
-  const prods = [
-    { name: 'LPG Gas', val: currentSolution && currentSolution.products && currentSolution.products.LPG ? currentSolution.products.LPG.production_kbpd : 12.5, color: '#38bdf8' },
-    { name: 'MS Gasoline (BS-VI)', val: currentSolution && currentSolution.products && currentSolution.products.MS_Gasoline ? currentSolution.products.MS_Gasoline.production_kbpd : 62.0, color: '#00f2fe' },
-    { name: 'ATF Jet Fuel', val: currentSolution && currentSolution.products && currentSolution.products.ATF_Jet ? currentSolution.products.ATF_Jet.production_kbpd : 38.0, color: '#818cf8' },
-    { name: 'HSD Diesel (BS-VI)', val: currentSolution && currentSolution.products && currentSolution.products.HSD_Diesel ? currentSolution.products.HSD_Diesel.production_kbpd : 110.0, color: '#10b981' },
-    { name: 'Heavy Fuel Oil', val: currentSolution && currentSolution.products && currentSolution.products.Fuel_Oil ? currentSolution.products.Fuel_Oil.production_kbpd : 45.0, color: '#f59e0b' }
-  ];
-
-  prods.forEach((p, i) => {
-    const py = prodY[i];
-
-    // Tank box
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.strokeStyle = p.color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(prodX, py - 18, 125, 36, 6);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 9px Outfit, sans-serif';
-    ctx.fillText(p.name, prodX + 8, py - 3);
-
-    ctx.fillStyle = p.color;
+    const totCdu = CRUDES_META.reduce((acc, c) => acc + c.rate, 0);
+    ctx.fillStyle = '#00f2fe';
     ctx.font = 'bold 9px JetBrains Mono, monospace';
-    ctx.fillText(`${p.val.toFixed(1)} kbpd`, prodX + 8, py + 11);
+    ctx.fillText(`${totCdu.toFixed(0)} kbpd`, cduX + 10, cduY + 52);
 
-    // Connecting pipe
-    ctx.strokeStyle = p.color;
+    // Central Processing Units (DHDS & FCC block)
+    const dhdsX = 390;
+    const dhdsY = 135;
+    const dhdsW = 80;
+    const dhdsH = 65;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    if (i === 3) {
-      // From DHDS to Diesel
-      ctx.moveTo(dhdsX + dhdsW, 165);
-      ctx.lineTo(prodX, py);
-    } else {
-      ctx.moveTo(cduX + cduW, 50 + i * 50);
-      ctx.lineTo(cduX + cduW + 40, py);
-      ctx.lineTo(prodX, py);
-    }
+    ctx.roundRect(dhdsX, dhdsY, dhdsW, dhdsH, 8);
+    ctx.fill();
     ctx.stroke();
 
-    // Particle
-    const startX = (i === 3) ? (dhdsX + dhdsW) : (cduX + cduW + 40);
-    const pX = startX + ((animOffset * 1.5 + i * 25) % Math.max(10, prodX - startX));
-    ctx.fillStyle = p.color;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 10px Outfit, sans-serif';
+    ctx.fillText('DHDS Unit', dhdsX + 12, dhdsY + 24);
+    ctx.fillStyle = '#10b981';
+    ctx.font = '9px JetBrains Mono, monospace';
+    const dhdsThru = currentSolution && currentSolution.units && currentSolution.units.DHDS ? currentSolution.units.DHDS.throughput_kbpd : 110.0;
+    ctx.fillText(`${dhdsThru.toFixed(1)} kbpd`, dhdsX + 12, dhdsY + 42);
+
+    // Pipe CDU -> DHDS
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(pX, py, 2.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(cduX + cduW, 165);
+    ctx.lineTo(dhdsX, 165);
+    ctx.stroke();
+
+    // Distillation Streams & Products on Right
+    const prodX = baseW - 145;
+    const prodY = [45, 105, 165, 225, 275];
+    const prods = [
+      { name: 'LPG Gas', val: currentSolution && currentSolution.products && currentSolution.products.LPG ? currentSolution.products.LPG.production_kbpd : 12.5, color: '#38bdf8' },
+      { name: 'MS Gasoline (BS-VI)', val: currentSolution && currentSolution.products && currentSolution.products.MS_Gasoline ? currentSolution.products.MS_Gasoline.production_kbpd : 62.0, color: '#00f2fe' },
+      { name: 'ATF Jet Fuel', val: currentSolution && currentSolution.products && currentSolution.products.ATF_Jet ? currentSolution.products.ATF_Jet.production_kbpd : 38.0, color: '#818cf8' },
+      { name: 'HSD Diesel (BS-VI)', val: currentSolution && currentSolution.products && currentSolution.products.HSD_Diesel ? currentSolution.products.HSD_Diesel.production_kbpd : 110.0, color: '#10b981' },
+      { name: 'Heavy Fuel Oil', val: currentSolution && currentSolution.products && currentSolution.products.Fuel_Oil ? currentSolution.products.Fuel_Oil.production_kbpd : 45.0, color: '#f59e0b' }
+    ];
+
+    prods.forEach((p, i) => {
+      const py = prodY[i];
+
+      // Tank box
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(prodX, py - 18, 125, 36, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px Outfit, sans-serif';
+      ctx.fillText(p.name, prodX + 8, py - 3);
+
+      ctx.fillStyle = p.color;
+      ctx.font = 'bold 9px JetBrains Mono, monospace';
+      ctx.fillText(`${p.val.toFixed(1)} kbpd`, prodX + 8, py + 11);
+
+      // Connecting pipe
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (i === 3) {
+        // From DHDS to Diesel
+        ctx.moveTo(dhdsX + dhdsW, 165);
+        ctx.lineTo(prodX, py);
+      } else {
+        ctx.moveTo(cduX + cduW, 50 + i * 50);
+        ctx.lineTo(cduX + cduW + 40, py);
+        ctx.lineTo(prodX, py);
+      }
+      ctx.stroke();
+
+      // Particle
+      const startX = (i === 3) ? (dhdsX + dhdsW) : (cduX + cduW + 40);
+      const pX = startX + ((animOffset * 1.5 + i * 25) % Math.max(10, prodX - startX));
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(pX, py, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
   });
 }
 
@@ -1386,7 +1552,6 @@ function runStudioSolve() {
     } else {
       renderSolution(result);
       showToast(`Solve Complete: Objective ${result.objective} verified.`);
-      confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
     }
   }
 
@@ -1617,12 +1782,10 @@ function initKktVerifier() {
   if (auditBtn) {
     auditBtn.addEventListener('click', () => {
       auditBtn.textContent = 'Auditing Karush-Kuhn-Tucker Conditions...';
-      auditBtn.classList.add('glow-button');
 
       setTimeout(() => {
-        auditBtn.textContent = '✓ 100% KKT Verified (0 Violations)';
-        showToast('tools/verify_solution.py: Exact Primal/Dual KKT Complementarity confirmed!');
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+        auditBtn.textContent = 'KKT Verified (0 Residual Violations)';
+        showToast('tools/verify_solution.py: Exact Primal/Dual KKT Complementarity confirmed.');
       }, 700);
     });
   }

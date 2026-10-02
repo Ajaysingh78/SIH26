@@ -108,7 +108,7 @@ class SankhyaApiHandler(BaseHTTPRequestHandler):
 
         self._send_json({
             "status": "ok",
-            "engine": "SANKHYA Sovereign C++ / Python Engine",
+            "engine": "SANJAY (SANKHYA Core) Sovereign C++ / GPU Engine",
             "version": "1.0.0",
             "git_commit": "fb6ff51",
             "features_active": [

@@ -677,7 +677,7 @@ class RefineryDigitalTwinBackend:
             }
 
             summary_text = (
-                f"SANKHYA Solved {s_def['name']}: Net Margin ${net_margin:,.2f}k/day "
+                f"SANJAY Solved {s_def['name']}: Net Margin ${net_margin:,.2f}k/day "
                 f"(GRM ${grm:.2f}/bbl). Crude Processed: {tot_crude:.1f} kbpd. "
                 f"Status: {sol.status} | Trust Layer: {verif_status}."
             )
@@ -698,7 +698,7 @@ class RefineryDigitalTwinBackend:
                 "objective_discrepancy": 0.0,
                 "tolerance": 1e-7,
             }
-            summary_text = f"SANKHYA Solve Result: {sol.status}. {sol.message} Trust Layer: {verif_status}."
+            summary_text = f"SANJAY Solve Result: {sol.status}. {sol.message} Trust Layer: {verif_status}."
 
         return {
             "success": sol.status == "OPTIMAL",

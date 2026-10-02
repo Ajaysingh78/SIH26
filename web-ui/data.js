@@ -1,4 +1,4 @@
-// SANKHYA Optimization Solver - Preloaded Models & Real Benchmark Evidence Data
+// SANJAY Optimization Solver - Preloaded Models & Real Benchmark Evidence Data
 
 export const MODEL_PRESETS = {
   crude_blend: {
@@ -7,7 +7,7 @@ export const MODEL_PRESETS = {
     badgeClass: "badge",
     sense: "MAXIMIZE",
     stats: "Rows: 4 · Cols: 3 · Non-zeros: 12",
-    content: `* SANKHYA demo instance - crude blending for a diesel pool.
+    content: `* SANJAY demo instance - crude blending for a diesel pool.
 * Decision variables, in kbbl/day of crude charged to the CDU:
 *   AL  Arab Light   74 $/bbl   diesel yield 0.30   sulphur 1.80 %wt
 *   BN  Bonny Light  79 $/bbl   diesel yield 0.45   sulphur 0.14 %wt
@@ -58,16 +58,16 @@ ENDATA`,
         { name: "SULPHUR", activity: "-42.857895", lower: "-Infinity", upper: "0.00", pi: "0.000000", slack: "+42.857895 Slack" }
       ],
       logLines: [
-        "[sankhya:io] Reading MPS file 'demo/crude_blend.mps'...",
-        "[sankhya:io] Read 3 columns, 4 rows, 12 non-zeros, sense MAXIMIZE.",
-        "[sankhya:presolve] 0 empty rows, 0 singletons removed. Postsolve stack initialized.",
-        "[sankhya:simplex] Basis initialized: slack basis.",
-        "[sankhya:simplex] Iteration 1: entering MU, leaving s_THRUPUT, obj=147.600000",
-        "[sankhya:simplex] Iteration 2: entering BN, leaving s_DIESEL, obj=192.400000",
-        "[sankhya:simplex] Iteration 3: entering AL, hit lower bound 10.000000, obj=205.800000",
-        "[sankhya:simplex] Iteration 4: Devex pricing confirms no dual violations. Optimal basis verified.",
-        "[sankhya:core] recompute_quality: max_primal_inf=2.22e-16, max_dual_inf=0.00e+00.",
-        "[sankhya:core] Objective certified optimal: 214.145945945946"
+        "[sanjay:io] Reading MPS file 'demo/crude_blend.mps'...",
+        "[sanjay:io] Read 3 columns, 4 rows, 12 non-zeros, sense MAXIMIZE.",
+        "[sanjay:presolve] 0 empty rows, 0 singletons removed. Postsolve stack initialized.",
+        "[sanjay:simplex] Basis initialized: slack basis.",
+        "[sanjay:simplex] Iteration 1: entering MU, leaving s_THRUPUT, obj=147.600000",
+        "[sanjay:simplex] Iteration 2: entering BN, leaving s_DIESEL, obj=192.400000",
+        "[sanjay:simplex] Iteration 3: entering AL, hit lower bound 10.000000, obj=205.800000",
+        "[sanjay:simplex] Iteration 4: Devex pricing confirms no dual violations. Optimal basis verified.",
+        "[sanjay:core] recompute_quality: max_primal_inf=2.22e-16, max_dual_inf=0.00e+00.",
+        "[sanjay:core] Objective certified optimal: 214.145945945946"
       ]
     }
   },
@@ -78,7 +78,7 @@ ENDATA`,
     badgeClass: "badge purple",
     sense: "MINIMIZE",
     stats: "Rows: 1 · Cols: 2 · Hessian: 2x2 Diagonal",
-    content: `* SANKHYA demo instance - strictly convex 2-stream blend
+    content: `* SANJAY demo instance - strictly convex 2-stream blend
 * Minimizes 0.5 * (x1^2 + 2*x2^2) subject to x1 + x2 = 100
 * Hand-derived analytic KKT optimum: x1=200/3, x2=100/3, obj=200/3 ~ 66.666667
 NAME          QP_BLEND
@@ -111,13 +111,13 @@ ENDATA`,
         { name: "POOL", activity: "100.000000", lower: "100.00", upper: "100.00", pi: "-66.666667", slack: "Binding (0.0 slack)" }
       ],
       logLines: [
-        "[sankhya:io] Reading QPS file 'demo/qp_blend.mps'...",
-        "[sankhya:core] Detected QUADOBJ: strictly convex Hessian recognized.",
-        "[sankhya:qp] LDLᵀ Cholesky test: All pivots positive. Matrix is strictly positive definite.",
-        "[sankhya:qp] Condat-Vũ primal-dual loop started: step_x=0.45, step_y=0.45.",
-        "[sankhya:qp] Iteration 6: primal residual 4.2e-07, dual residual 3.1e-08.",
-        "[sankhya:qp] Iteration 12: converged to 1e-12 tolerance.",
-        "[sankhya:core] Objective certified optimal: 66.666666666667 (Matches KKT analytic 200/3)."
+        "[sanjay:io] Reading QPS file 'demo/qp_blend.mps'...",
+        "[sanjay:core] Detected QUADOBJ: strictly convex Hessian recognized.",
+        "[sanjay:qp] LDLᵀ Cholesky test: All pivots positive. Matrix is strictly positive definite.",
+        "[sanjay:qp] Condat-Vũ primal-dual loop started: step_x=0.45, step_y=0.45.",
+        "[sanjay:qp] Iteration 6: primal residual 4.2e-07, dual residual 3.1e-08.",
+        "[sanjay:qp] Iteration 12: converged to 1e-12 tolerance.",
+        "[sanjay:core] Objective certified optimal: 66.666666666667 (Matches KKT analytic 200/3)."
       ]
     }
   },
@@ -128,7 +128,7 @@ ENDATA`,
     badgeClass: "badge blue",
     sense: "MAXIMIZE",
     stats: "Rows: 6 · Cols: 5 · Integer Binaries: 2",
-    content: `* SANKHYA demo instance - discrete refinery scheduling with CDU startup charges
+    content: `* SANJAY demo instance - discrete refinery scheduling with CDU startup charges
 NAME          BLENDMILP
 OBJSENSE
     MAXIMIZE
@@ -152,10 +152,10 @@ COLUMNS
 RHS
     RHS       THRUPUT      90.00   DIESEL        40.00
 BOUNDS
- BV BND       USE_A
- BV BND       USE_B
- LO BND       AL           10.00
- UP BND       BN           45.00
+  BV BND       USE_A
+  BV BND       USE_B
+  LO BND       AL           10.00
+  UP BND       BN           45.00
 ENDATA`,
     result: {
       status: "optimal",
@@ -178,12 +178,12 @@ ENDATA`,
         { name: "STARTUP_B", activity: "-55.000000", lower: "-Infinity", upper: "0.00", pi: "0.000000", slack: "+55.00 Margin" }
       ],
       logLines: [
-        "[sankhya:mip] Dispatched to Branch-and-Bound engine (src/mip/branch_and_bound.cpp).",
-        "[sankhya:mip] Root LP relaxation solved: obj=214.145946 (integrality gap: 20.00).",
-        "[sankhya:mip] Node 0: Diving heuristic applied, found incumbent obj=194.145946.",
-        "[sankhya:mip] Reliability branching on USE_A and USE_B: product score prunes subtrees.",
-        "[sankhya:mip] Both integer branches closed. Proved global optimum with 0% gap.",
-        "[sankhya:core] MIP optimal: objective = 194.145946 (Nodes explored: 3)."
+        "[sanjay:mip] Dispatched to Branch-and-Bound engine (src/mip/branch_and_bound.cpp).",
+        "[sanjay:mip] Root LP relaxation solved: obj=214.145946 (integrality gap: 20.00).",
+        "[sanjay:mip] Node 0: Diving heuristic applied, found incumbent obj=194.145946.",
+        "[sanjay:mip] Reliability branching on USE_A and USE_B: product score prunes subtrees.",
+        "[sanjay:mip] Both integer branches closed. Proved global optimum with 0% gap.",
+        "[sanjay:core] MIP optimal: objective = 194.145946 (Nodes explored: 3)."
       ]
     }
   },
@@ -195,7 +195,7 @@ ENDATA`,
     sense: "MINIMIZE",
     stats: "Rows: 96 · Cols: 79 · Non-zeros: 730",
     content: `* Netlib standard LP: SHARE2B
-* Solved live and independently verified across all SANKHYA test harnesses
+* Solved live and independently verified across all SANJAY test harnesses
 NAME          SHARE2B
 OBJSENSE
     MINIMIZE
@@ -225,10 +225,10 @@ ENDATA`,
         { name: "COST", activity: "-415.732240", lower: "-Infinity", upper: "Infinity", pi: "1.000000", slack: "Objective" }
       ],
       logLines: [
-        "[sankhya:io] Reading Netlib instance 'share2b.mps'...",
-        "[sankhya:presolve] 8 empty rows/columns purged. Matrix scaled via Ruiz equilibration.",
-        "[sankhya:simplex] Dual simplex with Devex pricing: 88 iterations.",
-        "[sankhya:core] Exact match with published Netlib optimum: -415.732240211."
+        "[sanjay:io] Reading Netlib instance 'share2b.mps'...",
+        "[sanjay:presolve] 8 empty rows/columns purged. Matrix scaled via Ruiz equilibration.",
+        "[sanjay:simplex] Dual simplex with Devex pricing: 88 iterations.",
+        "[sanjay:core] Exact match with published Netlib optimum: -415.732240211."
       ]
     }
   },
@@ -266,9 +266,9 @@ ENDATA`,
         { name: "R09", activity: "0.000000", lower: "0.00", upper: "0.00", pi: "-2.314012", slack: "Binding" }
       ],
       logLines: [
-        "[sankhya:io] Read AFIRO: 27 rows, 32 columns.",
-        "[sankhya:simplex] Primal/Dual simplex reached exact optimum: -464.753142857 in 16 iterations.",
-        "[sankhya:verifier] tools/verify_solution.py: 0 KKT violations."
+        "[sanjay:io] Read AFIRO: 27 rows, 32 columns.",
+        "[sanjay:simplex] Primal/Dual simplex reached exact optimum: -464.753142857 in 16 iterations.",
+        "[sanjay:verifier] tools/verify_solution.py: 0 KKT violations."
       ]
     }
   }

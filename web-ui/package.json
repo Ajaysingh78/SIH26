@@ -1,5 +1,5 @@
 {
-  "name": "sankhya-web-ui",
+  "name": "sanjay-web-ui",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -8,7 +8,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
     "vite": "^5.4.0"
   }
 }
